@@ -1,0 +1,15 @@
+services:
+  claude-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: claude-sdk-server:latest
+    container_name: claude-sdk-server
+    network_mode: host
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./claude_desktop_config.json:/app/claude_desktop_config.json
+    env_file:
+      - .env
+    restart: unless-stopped
