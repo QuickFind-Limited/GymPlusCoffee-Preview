@@ -1280,7 +1280,7 @@ When asked to generate reports in specific formats, follow these guidelines:
 - Save to: `tmp/{conversation_id}/attachments/`
 
 ### Excel Files (.xlsx)
-- Use openpyxl or xlsxwriter to create Excel files
+- Use openpyxl or xlsxwriter to create Excel files (CSV or .xls are not acceptable substitutes when .xlsx is requested)
 - Support multiple sheets if requested
 - Include formatting when appropriate (headers, number formats, etc.)
 - Save to: `tmp/{conversation_id}/attachments/`

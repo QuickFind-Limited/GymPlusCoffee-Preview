@@ -9,6 +9,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Download, FileText, Table, X } from "lucide-react";
 import React, { useEffect, useMemo, useState } from "react";
+import PdfPreview from "@/components/PdfPreview";
 import * as XLSX from 'xlsx';
 
 type FileKind = "markdown" | "json" | "csv" | "text" | "excel" | "pdf";
@@ -259,11 +260,7 @@ export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({
           {!loading && !error && (
             <>
               {fileKind === "pdf" ? (
-                <iframe
-                  src={pdfUrl}
-                  className="w-full h-full border-0 rounded"
-                  title={title}
-                />
+                <PdfPreview url={pdfUrl} className="h-full" />
               ) : (
                 <ScrollArea className="h-full rounded border bg-muted/10">
                   {fileKind === "markdown" ? (

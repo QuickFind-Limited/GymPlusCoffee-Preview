@@ -19,6 +19,8 @@ dependencies = [
     "rich>=14.1.0",
     "sse-starlette>=3.0.0",
     "reportlab>=4.4.4",
+    "openpyxl>=3.1.5",
+    "XlsxWriter>=3.0.9",
 ]
 
 [build-system]

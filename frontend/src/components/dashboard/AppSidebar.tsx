@@ -1,9 +1,8 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ClipboardList, FileText, Database, Clock, RefreshCw, Check, Edit, Search, CreditCard, Settings, Building2, BarChart3, LogOut, Package, MessageSquare, Archive } from 'lucide-react';
+import { ClipboardList, FileText, Database, Clock, Edit, Search, CreditCard, Settings, Building2, BarChart3, LogOut, Package, MessageSquare, Archive } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator, SidebarFooter } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import SearchDialog from './SearchDialog';
 import PaymentDialog from '../PaymentDialog';
@@ -16,10 +15,6 @@ interface AppSidebarProps {
 const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isAutoSyncing, setIsAutoSyncing] = useState(false);
-  const [isAutoSynced, setIsAutoSynced] = useState(() => 
-    localStorage.getItem('gmailActuallySynced') === 'true'
-  );
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -53,46 +48,6 @@ const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
       amount: 895.75
     }
   ];
-
-  const hasUnpaidInvoices = pendingInvoices.some(invoice => 
-    invoice.status === 'pending' || invoice.status === 'overdue'
-  );
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setIsAutoSynced(localStorage.getItem('gmailActuallySynced') === 'true');
-    };
-
-    const handleGmailSyncCompleted = () => {
-      setIsAutoSynced(true);
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    window.addEventListener('gmailSyncCompleted', handleGmailSyncCompleted);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('gmailSyncCompleted', handleGmailSyncCompleted);
-    };
-  }, []);
-
-  const handleAutoSync = () => {
-    setIsAutoSyncing(true);
-    toast({
-      title: "Auto-sync started",
-      description: "Syncing all data sources..."
-    });
-
-    setTimeout(() => {
-      setIsAutoSyncing(false);
-      setIsAutoSynced(true);
-      localStorage.setItem('gmailActuallySynced', 'true');
-      toast({
-        title: "Auto-sync complete",
-        description: "All data sources have been synchronized"
-      });
-    }, 3000);
-  };
 
   const handlePayClick = () => {
     setIsPaymentDialogOpen(true);
@@ -146,14 +101,12 @@ const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
       title: "Data Sources",
       icon: Database,
       onClick: () => navigate('/data-sources'),
-      hasAutoSync: true,
       isSmaller: true
     },
     {
       title: "Storage",
       icon: Archive,
       onClick: () => navigate('/storage'),
-      hasAutoSync: false,
       isSmaller: true
     }
   ];
@@ -244,23 +197,6 @@ const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
                         <span>{item.title}</span>
                       </SidebarMenuButton>
                       
-                      {item.hasAutoSync && (
-                        <div className="flex items-center ml-2 relative">
-                          {isAutoSynced ? (
-                            <div className="flex items-center text-green-600 text-sm font-medium px-2 py-1">
-                              <Check className="h-3.5 w-3.5 mr-1" />
-                              <span>synced</span>
-                            </div>
-                          ) : (
-                            <Button variant="outline" size="sm" className="px-2 py-1 h-7 text-sm rounded-full flex items-center gap-1" onClick={handleAutoSync} disabled={isAutoSyncing}>
-                              {isAutoSyncing ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
-                              <span>sync</span>
-                            </Button>
-                          )}
-                        </div>
-                        )}
-
-
                     </div>
                   </SidebarMenuItem>
                 ))}

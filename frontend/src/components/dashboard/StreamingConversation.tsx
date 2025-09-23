@@ -828,202 +828,68 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                                 }
                               />
 
-                              {(Array.isArray(finalEvent.data.attachments) &&
-                                finalEvent.data.attachments.length > 0) ||
-                              (Array.isArray(finalEvent.data.new_files) &&
-                                finalEvent.data.new_files.length > 0) ||
-                              (Array.isArray(finalEvent.data.updated_files) &&
-                                finalEvent.data.updated_files.length > 0) ? (
+                              {Array.isArray(finalEvent.data.attachments) &&
+                              finalEvent.data.attachments.length > 0 ? (
                                 <div className="mt-4 pt-3 border-t">
                                   <div className="flex items-center gap-2 mb-2 text-sm font-medium text-muted-foreground">
                                     <Paperclip className="h-4 w-4" />
-                                    <span>Generated files</span>
-                                    {finalEvent.data.file_changes_summary && (
-                                      <span className="text-xs text-muted-foreground">
-                                        •{" "}
-                                        {finalEvent.data.file_changes_summary
-                                          .new_count ?? 0}{" "}
-                                        new(s),{" "}
-                                        {finalEvent.data.file_changes_summary
-                                          .updated_count ?? 0}{" "}
-                                        updated(s)
-                                      </span>
-                                    )}
+                                    <span>Attachments</span>
                                   </div>
 
-                                  {/* Pièces jointes */}
-                                  {Array.isArray(finalEvent.data.attachments) &&
-                                    finalEvent.data.attachments.length > 0 && (
-                                      <div className="mb-3">
-                                        <div className="text-xs text-muted-foreground mb-1">
-                                          Attachments
-                                        </div>
-                                        <ul className="space-y-1">
-                                          {finalEvent.data.attachments.map(
-                                            (att: any, idx: number) => {
-                                              const name =
-                                                (
-                                                  att.path ||
-                                                  att.absolute_path ||
-                                                  ""
-                                                )
-                                                  .toString()
-                                                  .split("/")
-                                                  .pop() ||
-                                                att.path ||
-                                                att.absolute_path ||
-                                                `attachment-${idx + 1}`;
-                                              return (
-                                                <li
-                                                  key={`${name}-${idx}`}
-                                                  className="flex items-center gap-2 text-sm"
-                                                >
-                                                  <FileText className="h-3.5 w-3.5 text-primary/80" />
-                                                  <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                      openFilePreview(
-                                                        finalEvent.data
-                                                          .session_id as
-                                                          | string
-                                                          | undefined,
-                                                        name
-                                                      )
-                                                    }
-                                                    className="text-left text-gray-700 hover:text-gray-900 hover:underline dark:text-gray-300 dark:hover:text-gray-100 disabled:opacity-50"
-                                                    disabled={
-                                                      !finalEvent.data
-                                                        .session_id
-                                                    }
-                                                    title={
-                                                      finalEvent.data.session_id
-                                                        ? "Click to preview"
-                                                        : "Preview not available"
-                                                    }
-                                                  >
-                                                    {name}
-                                                  </button>
-                                                  {typeof att.size ===
-                                                    "number" && (
-                                                    <span className="text-xs text-muted-foreground">
-                                                      •{" "}
-                                                      {(
-                                                        att.size / 1024
-                                                      ).toFixed(1)}{" "}
-                                                      KB
-                                                    </span>
-                                                  )}
-                                                </li>
-                                              );
-                                            }
-                                          )}
-                                        </ul>
-                                      </div>
-                                    )}
-
-                                  {Array.isArray(finalEvent.data.new_files) &&
-                                    finalEvent.data.new_files.length > 0 && (
-                                      <div className="mb-3">
-                                        <div className="text-xs text-muted-foreground mb-1">
-                                          New files
-                                        </div>
-                                        <ul className="space-y-1">
-                                          {finalEvent.data.new_files.map(
-                                            (path: unknown, idx: number) => {
-                                              const p = String(path);
-                                              const name =
-                                                p.split("/").pop() || p;
-                                              return (
-                                                <li
-                                                  key={`new-${idx}`}
-                                                  className="flex items-center gap-2 text-sm"
-                                                >
-                                                  <FileText className="h-3.5 w-3.5 text-primary/80" />
-                                                  <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                      openFilePreview(
-                                                        finalEvent.data
-                                                          .session_id as
-                                                          | string
-                                                          | undefined,
-                                                        name
-                                                      )
-                                                    }
-                                                    className="text-left text-gray-700 hover:text-gray-900 hover:underline dark:text-gray-300 dark:hover:text-gray-100 disabled:opacity-50"
-                                                    disabled={
-                                                      !finalEvent.data
-                                                        .session_id
-                                                    }
-                                                    title={
-                                                      finalEvent.data.session_id
-                                                        ? "Click to preview"
-                                                        : "Preview not available"
-                                                    }
-                                                  >
-                                                    {name}
-                                                  </button>
-                                                </li>
-                                              );
-                                            }
-                                          )}
-                                        </ul>
-                                      </div>
-                                    )}
-
-                                  {/* updated files */}
-                                  {Array.isArray(
-                                    finalEvent.data.updated_files
-                                  ) &&
-                                    finalEvent.data.updated_files.length >
-                                      0 && (
-                                      <div>
-                                        <div className="text-xs text-muted-foreground mb-1">
-                                          Updated files
-                                        </div>
-                                        <ul className="space-y-1">
-                                          {finalEvent.data.updated_files.map(
-                                            (path: unknown, idx: number) => {
-                                              const p = String(path);
-                                              const name =
-                                                p.split("/").pop() || p;
-                                              return (
-                                                <li
-                                                  key={`upd-${idx}`}
-                                                  className="flex items-center gap-2 text-sm"
-                                                >
-                                                  <FileText className="h-3.5 w-3.5 text-primary/80" />
-                                                  <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                      openFilePreview(
-                                                        finalEvent.data
-                                                          .session_id as
-                                                          | string
-                                                          | undefined,
-                                                        name
-                                                      )
-                                                    }
-                                                    className="text-left text-gray-700 hover:text-gray-900 hover:underline dark:text-gray-300 dark:hover:text-gray-100 disabled:opacity-50"
-                                                    disabled={
-                                                      !finalEvent.data
-                                                        .session_id
-                                                    }
-                                                    title={
-                                                      finalEvent.data.session_id
-                                                        ? "Click to preview"
-                                                        : "Preview not available"
-                                                    }
-                                                  >
-                                                    {name}
-                                                  </button>
-                                                </li>
-                                              );
-                                            }
-                                          )}
-                                        </ul>
-                                      </div>
-                                    )}
+                                  <div className="mb-3">
+                                    <ul className="space-y-1">
+                                      {finalEvent.data.attachments.map(
+                                        (att: any, idx: number) => {
+                                          const name =
+                                            (att.path || att.absolute_path || "")
+                                              .toString()
+                                              .split("/")
+                                              .pop() ||
+                                            att.path ||
+                                            att.absolute_path ||
+                                            `attachment-${idx + 1}`;
+                                          return (
+                                            <li
+                                              key={`${name}-${idx}`}
+                                              className="flex items-center gap-2 text-sm"
+                                            >
+                                              <FileText className="h-3.5 w-3.5 text-primary/80" />
+                                              <button
+                                                type="button"
+                                                onClick={() =>
+                                                  openFilePreview(
+                                                    finalEvent.data
+                                                      .session_id as
+                                                      | string
+                                                      | undefined,
+                                                    name
+                                                  )
+                                                }
+                                                className="text-left text-gray-700 hover:text-gray-900 hover:underline dark:text-gray-300 dark:hover:text-gray-100 disabled:opacity-50"
+                                                disabled={
+                                                  !finalEvent.data.session_id
+                                                }
+                                                title={
+                                                  finalEvent.data.session_id
+                                                    ? "Click to preview"
+                                                    : "Preview not available"
+                                                }
+                                              >
+                                                {name}
+                                              </button>
+                                              {typeof att.size === "number" && (
+                                                <span className="text-xs text-muted-foreground">
+                                                  • {(
+                                                    att.size / 1024
+                                                  ).toFixed(1)} KB
+                                                </span>
+                                              )}
+                                            </li>
+                                          );
+                                        }
+                                      )}
+                                    </ul>
+                                  </div>
                                 </div>
                               ) : null}
                             </div>
@@ -1200,12 +1066,13 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                           }
                         />
 
-                        {(Array.isArray(finalEvent.data.attachments) &&
-                          finalEvent.data.attachments.length > 0) ||
-                        (Array.isArray(finalEvent.data.new_files) &&
-                          finalEvent.data.new_files.length > 0) ||
-                        (Array.isArray(finalEvent.data.updated_files) &&
-                          finalEvent.data.updated_files.length > 0) ? (
+                        {false &&
+                          ((Array.isArray(finalEvent.data.attachments) &&
+                            finalEvent.data.attachments.length > 0) ||
+                          (Array.isArray(finalEvent.data.new_files) &&
+                            finalEvent.data.new_files.length > 0) ||
+                          (Array.isArray(finalEvent.data.updated_files) &&
+                            finalEvent.data.updated_files.length > 0)) ? (
                           <div className="mt-4 pt-3 border-t">
                             <div className="flex items-center gap-2 mb-2 text-sm font-medium text-muted-foreground">
                               <Paperclip className="h-4 w-4" />
@@ -1263,8 +1130,8 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                                               }
                                               title={
                                                 finalEvent.data.session_id
-                                                  ? "Ouvrir l'aperçu"
-                                                  : "Aucune session disponible"
+                                                  ? "Open preview"
+                                                  : "Session unavailable"
                                               }
                                             >
                                               {name}
@@ -1389,6 +1256,63 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                               )}
                           </div>
                         ) : null}
+
+                        {Array.isArray(finalEvent.data.attachments) &&
+                          finalEvent.data.attachments.length > 0 && (
+                          <div className="mt-4 pt-3 border-t">
+                            <div className="flex items-center gap-2 mb-2 text-sm font-medium text-muted-foreground">
+                              <Paperclip className="h-4 w-4" />
+                              <span>Attachments</span>
+                            </div>
+                            <ul className="space-y-1">
+                              {finalEvent.data.attachments.map(
+                                (att: any, idx: number) => {
+                                  const name =
+                                    (att.path || att.absolute_path || "")
+                                      .toString()
+                                      .split("/")
+                                      .pop() ||
+                                    att.path ||
+                                    att.absolute_path ||
+                                    `attachment-${idx + 1}`;
+                                  return (
+                                    <li
+                                      key={`${name}-${idx}`}
+                                      className="flex items-center gap-2 text-sm"
+                                    >
+                                      <FileText className="h-3.5 w-3.5 text-primary/80" />
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          openFilePreview(
+                                            finalEvent.data.session_id as
+                                              | string
+                                              | undefined,
+                                            name
+                                          )
+                                        }
+                                        className="text-left text-gray-700 hover:text-gray-900 hover:underline dark:text-gray-300 dark:hover:text-gray-100 disabled:opacity-50"
+                                        disabled={!finalEvent.data.session_id}
+                                        title={
+                                          finalEvent.data.session_id
+                                            ? "Click to preview"
+                                            : "Preview not available"
+                                        }
+                                      >
+                                        {name}
+                                      </button>
+                                      {typeof att.size === "number" && (
+                                        <span className="text-xs text-muted-foreground">
+                                          • {(att.size / 1024).toFixed(1)} KB
+                                        </span>
+                                      )}
+                                    </li>
+                                  );
+                                }
+                              )}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                       <div className="text-xs text-muted-foreground mt-1 ml-2">
                         Assistant •{" "}
