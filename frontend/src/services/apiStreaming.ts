@@ -191,7 +191,7 @@ export class APIStreamingService {
                   if (
                     d &&
                     typeof d === "object" &&
-                    (d as Record<string, unknown>).hasOwnProperty("has_text") &&
+                    Object.hasOwn(d as Record<string, unknown>, "has_text") &&
                     (d as Record<string, unknown>)["has_text"] === false
                   ) {
                     continue;

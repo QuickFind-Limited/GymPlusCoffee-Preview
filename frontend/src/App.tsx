@@ -16,11 +16,8 @@ import Auth from "./pages/Auth";
 import AuthConfirm from "./pages/AuthConfirm";
 import Dashboard from "./pages/Dashboard";
 import DataSources from "./pages/DataSources";
-import Insights from "./pages/Insights";
-import Forecasts from "./pages/Forecasts";
-import ProductDetails from "./pages/ProductDetails";
-import ProductsCatalog from "./pages/ProductsCatalog";
 import NotFound from "./pages/NotFound";
+import Settings from "./pages/Settings";
 import Storage from "./pages/Storage";
 import VerifyEmail from "./pages/VerifyEmail";
 
@@ -164,42 +161,18 @@ const RoutesWithProviders = () => {
                 }
               />
               <Route
-                path="/product/:id"
-                element={
-                  <ProtectedRoute>
-                    <ProductDetails />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/products-catalog"
-                element={
-                  <ProtectedRoute>
-                    <ProductsCatalog />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/forecasts"
-                element={
-                  <ProtectedRoute>
-                    <Forecasts />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/insights"
-                element={
-                  <ProtectedRoute>
-                    <Insights />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
                 path="/storage"
                 element={
                   <ProtectedRoute>
                     <Storage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <Settings />
                   </ProtectedRoute>
                 }
               />

@@ -154,6 +154,10 @@ const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
           </SidebarMenu>
         </SidebarHeader>
 
+        <div className="px-4 pt-2">
+          <div className="h-px w-full bg-muted-foreground/20" />
+        </div>
+
         <SidebarContent>
           <SidebarGroup>
             <SidebarGroupContent>
@@ -224,7 +228,10 @@ const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
               </SidebarMenuButton>
             </SidebarMenuItem>
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={onLogout} className="w-full justify-start text-base font-medium px-px py-0 my-0 mx-0 text-red-600 hover:text-red-700">
+              <SidebarMenuButton
+                onClick={onLogout}
+                className="w-full justify-start text-base font-semibold px-px py-0 my-0 mx-0 text-black hover:text-black"
+              >
                 <LogOut className="h-5 w-5" />
                 <span>Sign Out</span>
               </SidebarMenuButton>

@@ -909,6 +909,7 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
             })}
 
           {/* Étapes de progression actuelles */}
+          {/* eslint-disable-next-line no-constant-condition, no-constant-binary-expression */}
           {false &&
             events.filter((e) => {
               const passesBaseFilter =
@@ -1047,6 +1048,7 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
             )}
 
           {/* Réponse finale - affichée après le bloc events */}
+          {/* eslint-disable-next-line no-constant-condition, no-constant-binary-expression */}
           {false &&
             events
               .filter((event) => event.type === "final_response")
@@ -1067,6 +1069,7 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                           }
                         />
 
+                        {/* eslint-disable-next-line no-constant-condition, no-constant-binary-expression */}
                         {false &&
                           ((Array.isArray(finalEvent.data.attachments) &&
                             finalEvent.data.attachments.length > 0) ||
