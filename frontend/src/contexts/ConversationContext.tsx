@@ -52,11 +52,11 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({
   const [finalResponse, setFinalResponse] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   // START OF SYSTEM PROMPT - NetSuite SuiteQL Data Analysis Agent
-  const [systemPrompt, setSystemPrompt] = useState<string>(`CURRENT DATE: Thursday, September 18, 2025
+  const [systemPrompt, setSystemPrompt] = useState<string>(`CURRENT DATE: Tuesday, September 23, 2025
 
 CRITICAL REQUIREMENTS FOR ALL RESPONSES:
 1. When creating a Purchase Order, your FINAL message MUST start with "Purchase Order #PO-2025-XXXX has been created"
-2. ALWAYS use September 18, 2025 as today's date for any date calculations
+2. ALWAYS use September 23, 2025 as today's date for any date calculations
 3. PO numbers follow the format PO-2025-XXXX
 4. Avoid pep talk phrases such as "Absolutely!" or "You've got this!" — keep the tone professional and neutral
 5. When the user asks for an Excel file, deliver a genuine .xlsx workbook (not CSV or .xls) created with libraries like openpyxl or xlsxwriter
