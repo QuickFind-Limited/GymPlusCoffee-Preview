@@ -17,7 +17,5 @@ ensure_mcp_server() {
 }
 
 ensure_mcp_server netsuite_mcp "https://source-netsuite.fastmcp.app/mcp" http
-# Clarification MCP may be optional in some environments; ignore failures.
-ensure_mcp_server clarification_questions "http://localhost:3001/mcp" http || true
 
 exec "$@"

@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from datetime import datetime
 
 from src.claude_sdk_server.models.dto import QueryRequest
@@ -28,7 +28,6 @@ class NetSuiteResponse(BaseModel):
     """Response model for NetSuite queries."""
     success: bool
     data: Optional[Dict[str, Any]] = None
-    clarifications: Optional[List[Dict[str, Any]]] = None
     error: Optional[str] = None
     session_id: Optional[str] = None
     timestamp: str
@@ -40,16 +39,15 @@ NETSUITE_SYSTEM_PROMPT = """You are a NetSuite ERP assistant helping users with 
 
 You have MCP NetSuite tools available:
 - mcp__netsuite_mcp__execute_suiteql: Run any SQL query
-- mcp__netsuite_mcp__get_table_schema: Explore table structures
-- Other MCP NetSuite operations for creating/updating records
+- mcp__netsuite_mcp__get_table_schema: Explore data structures
+- Other NetSuite operations for creating or updating records
 
 ## YOUR APPROACH:
 
-1. Be FOCUSED - Don't explore unnecessarily
-2. Query for SPECIFIC items the user mentions
-3. Check vendor history using transactionline table (items are there, not in transaction)
-4. Generate CLEAR clarification questions
-5. Return STRUCTURED JSON responses
+1. Stay focused on the specific business question or item the user mentions.
+2. Ask concise follow-up questions when critical details are missing (transaction type, subsidiary, currency, date range, product variants, vendor preference).
+3. Use transaction history, inventory posture, and vendor performance to support recommendations and flag anomalies.
+4. Return structured JSON responses that summarize findings, assumptions, and recommended next steps.
 
 ## KEY INSIGHTS:
 - Items are in the transactionline table, not directly in transaction
@@ -77,166 +75,14 @@ You have MCP NetSuite tools available:
 - **transactionline**: Line items (items are here, not in transaction!)
 - **Note**: Items link to transactions through transactionline table
 
-## Key Discovery:
-```sql
--- Items are in transactionline, not directly in transaction
-SELECT tl.item, i.displayname
-FROM transactionline tl
-JOIN transaction t ON t.id = tl.transaction
-JOIN item i ON i.id = tl.item
-WHERE t.entity = <vendor_id>
-```
-
-## Example Query Pattern:
-```python
-import netsuite_helper
-
-# 1. Search for items
-sql = "SELECT id, displayname FROM item WHERE UPPER(displayname) LIKE '%SNAP%COLLAR%VARSITY%'"
-items = netsuite_helper.run_query(sql)
-
-if items.get('items'):
-    print(f"Found {len(items['items'])} items")
-
-    # 2. Get item IDs
-    item_ids = [str(item['id']) for item in items['items']]
-
-    # 3. Find vendors (remembering items are in transactionline!)
-    sql = f'''
-        SELECT DISTINCT v.companyname, COUNT(*) as orders
-        FROM vendor v
-        JOIN transaction t ON t.entity = v.id
-        JOIN transactionline tl ON tl.transaction = t.id
-        WHERE tl.item IN ({','.join(item_ids)})
-        GROUP BY v.companyname
-    '''
-    vendors = netsuite_helper.run_query(sql)
-
-    # 4. Generate clarifications based on ACTUAL data
-```
+## Example Workflow:
+1. Search for the product or metric the user mentioned using SuiteQL.
+2. If multiple options exist (variants, vendors, subsidiaries), confirm the correct dimension with the user before proceeding.
+3. Use MCP tools to gather supporting data (sales history, on-hand inventory, vendor performance).
+4. Summarize the findings and recommend the next business action.
 
 Remember: YOU write the SQL. YOU discover the data structure. YOU adapt when queries fail.
 """
-
-@router.post("/clarify", response_model=NetSuiteResponse)
-async def clarify_request(
-    request: NetSuiteRequest,
-    service: ClaudeService = Depends(get_claude_service),
-):
-    """
-    Process a NetSuite request and return clarifications.
-
-    Claude Code SDK will write and execute code to:
-    1. Query NetSuite for relevant data
-    2. Analyze the results
-    3. Generate clarifying questions
-    """
-    logger.info(f"Processing NetSuite clarification request: {request.query[:100]}...")
-
-    try:
-        # Prepare the prompt for Claude Code SDK
-        prompt = f"""
-        User request: {request.query}
-
-        Analyze this NetSuite request and generate clarification questions.
-
-        You have access to MCP NetSuite tools - use them! They're great for:
-        - execute_suiteql: Run SQL queries
-        - get_table_schema: Explore table structures
-        - Other NetSuite operations
-
-        IMPORTANT: Be focused and efficient:
-        1. Query for the specific items mentioned
-        2. Check for gender distinctions (Mens/Womens/Unisex) in item names
-        3. Check if vendors have supplied them
-        4. Look at inventory if relevant
-        5. Generate clarifications based on what you find, including gender if applicable
-
-        Return a structured JSON response with:
-        {{
-            "items_found": <number>,
-            "clarifications": [
-                {{
-                    "field": "vendor",
-                    "question": "Which vendor should supply?",
-                    "options": ["Vendor A", "Vendor B"]
-                }},
-                {{
-                    "field": "quantity",
-                    "question": "How to distribute 200 units?",
-                    "options": {{"item1": 100, "item2": 100}}
-                }}
-            ]
-        }}
-        """
-
-        # Let Claude Code SDK handle everything
-        response = await service.query(
-            request=QueryRequest(
-                prompt=prompt,
-                session_id=request.session_id,
-                max_turns=request.max_turns,
-                model="claude-sonnet-4-20250514",
-                max_thinking_tokens=8000 if request.include_thinking else 0,
-                system_prompt=NETSUITE_SYSTEM_PROMPT
-            )
-        )
-
-        # Extract clarifications from response if present
-        clarifications = None
-        if "clarifications" in response.response.lower():
-            # Claude should return structured data we can parse
-            try:
-                import json
-                import re
-                # Look for JSON blocks - try both with and without ```json markers
-                json_match = re.search(r'```json\n(.*?)\n```', response.response, re.DOTALL)
-                if not json_match:
-                    # Try to find JSON object directly
-                    json_match = re.search(r'(\{[^}]*"clarifications"[^}]*\})', response.response, re.DOTALL)
-                    if json_match:
-                        # Find the complete JSON object
-                        start_idx = response.response.find(json_match.group(0))
-                        bracket_count = 0
-                        end_idx = start_idx
-                        for i, char in enumerate(response.response[start_idx:], start_idx):
-                            if char == '{':
-                                bracket_count += 1
-                            elif char == '}':
-                                bracket_count -= 1
-                            if bracket_count == 0:
-                                end_idx = i + 1
-                                break
-                        json_str = response.response[start_idx:end_idx]
-                        parsed_json = json.loads(json_str)
-                    else:
-                        parsed_json = None
-                else:
-                    parsed_json = json.loads(json_match.group(1))
-
-                # Extract clarifications list from parsed JSON
-                if parsed_json and isinstance(parsed_json, dict) and 'clarifications' in parsed_json:
-                    clarifications = parsed_json['clarifications']
-                elif isinstance(parsed_json, list):
-                    clarifications = parsed_json
-            except Exception as e:
-                logger.warning(f"Failed to parse clarifications: {e}")
-
-        return NetSuiteResponse(
-            success=True,
-            data={"response": response.response},
-            clarifications=clarifications,
-            session_id=response.session_id,
-            timestamp=datetime.now().isoformat()
-        )
-
-    except Exception as e:
-        logger.error(f"NetSuite clarification error: {str(e)}")
-        return NetSuiteResponse(
-            success=False,
-            error=str(e),
-            timestamp=datetime.now().isoformat()
-        )
 
 @router.post("/execute", response_model=NetSuiteResponse)
 async def execute_action(

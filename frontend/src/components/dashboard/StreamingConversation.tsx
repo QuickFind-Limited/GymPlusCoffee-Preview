@@ -529,44 +529,16 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                       return null;
                     }
 
-                    // Check if the first event is a clarification question
-                    const firstEventContent = (filteredEvents[0]?.full_content || "").toLowerCase();
-                    const isFirstEventClarification =
-                      (firstEventContent.includes("which") && firstEventContent.includes("?")) ||
-                      (firstEventContent.includes("invoice") || firstEventContent.includes("cash")) ||
-                      firstEventContent.includes("payment method") ||
-                      firstEventContent.includes("how deep") ||
-                      firstEventContent.includes("recognition");
-
-                    let firstEvent = filteredEvents[0];
-                    let subtasks = filteredEvents.slice(1);
-
-                    // Track if this is a dummy wrapper
-                    let isDummyWrapper = false;
-
-                    // If the first event is a clarification question and there are no other events,
-                    // create a wrapper and move the clarification to subtasks
-                    if (isFirstEventClarification && filteredEvents.length === 1) {
-                      // Create a dummy wrapper event
-                      firstEvent = {
-                        ...firstEvent,
-                        id: `wrapper-${firstEvent.id}`,
-                        full_content: "Processing your response...",
-                      };
-                      // Move the actual clarification question to subtasks
-                      subtasks = [filteredEvents[0]];
-                      isDummyWrapper = true;
-                    }
-
-                    const hasFinalResponse = turnEvents.some(e => e.type === "final_response");
+                    const [firstEvent, ...subtasks] = filteredEvents;
+                    const hasFinalResponse = turnEvents.some((e) => e.type === "final_response");
                     const wrapperId = `wrapper-${message.id}`;
 
+                    if (!firstEvent) {
+                      return null;
+                    }
 
-                    // Check if first event has any content after stripping JSON
                     const strippedFirstContent = stripJsonBlocks(firstEvent.full_content || "").trim();
-
-                    // Also check if any subtasks have content after stripping
-                    const hasValidSubtasks = subtasks.some(task =>
+                    const hasValidSubtasks = subtasks.some((task) =>
                       stripJsonBlocks(task.full_content || "").trim().length > 0
                     );
 
@@ -574,22 +546,8 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                       return null; // Don't show empty wrapper
                     }
 
-
                     // Auto-expand while streaming for current turn, otherwise check stored state
                     const isCurrentTurn = message.id === lastUserMessageId;
-
-                    // Check if any event contains clarification questions that should be visible
-                    const hasClarificationContent = filteredEvents.some(e => {
-                      const content = (e.full_content || "").toLowerCase();
-                      return content.includes("invoice") && content.includes("cash") ||
-                             content.includes("subsidiary") ||
-                             content.includes("which currency");
-                    });
-
-                    // Don't show dummy wrapper if we have a final response
-                    if (isDummyWrapper && hasFinalResponse) {
-                      return null; // Hide the entire dummy wrapper
-                    }
 
                     const isExpanded = (isCurrentTurn && isStreaming) ||
                                       (isCurrentTurn && !hasFinalResponse) ||

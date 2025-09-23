@@ -3,10 +3,6 @@
     "netsuite_mcp": {
       "type": "http",
       "url": "https://source-netsuite.fastmcp.app/mcp"
-    },
-    "clarification_questions": {
-      "type": "http",
-      "url": "http://localhost:3001/mcp"
     }
   }
 }

@@ -9,19 +9,12 @@ NETSUITE_ADDON = """
 
 When users request NetSuite purchase orders or inventory operations:
 
-1. **Use the clarification API first** to gather requirements:
-   - Call POST /api/v1/netsuite/clarify with the user's request
-   - This will analyze the request and return clarification questions about:
-     * Gender distinctions (Mens/Womens/Unisex - detected from item codes)
-     * Available colors and sizes
-     * Vendor selection based on history
-     * Quantity distribution
-
-2. **Present clarifications to user** and gather their responses
-
-3. **Execute the action** with user's choices:
-   - Call POST /api/v1/netsuite/execute with the clarified specifications
-   - This will use MCP tools to create the actual purchase order
+1. Identify missing business details (transaction type, subsidiary, currency, date range, product variants, vendor preference) and ask concise follow-up questions before executing.
+2. Use the available MCP NetSuite tools to gather data or perform updates:
+   - mcp__netsuite_mcp__execute_suiteql: run SuiteQL queries
+   - mcp__netsuite_mcp__get_table_schema: inspect available data points
+   - Additional operations for creating or updating NetSuite records
+3. Execute actions only after validating inputs and confirming the requested outcome with the user.
 
 The NetSuite integration automatically:
 - Detects gender from item codes (e.g., 'U' = Unisex)
