@@ -11,6 +11,7 @@ This module provides structured, clean logging using loguru with:
 
 import os
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -343,7 +344,8 @@ def get_log_context(**context_data) -> Dict[str, Any]:
     Returns:
         Dictionary with context data for logging
     """
-    return {"timestamp": logger._datetime.now().isoformat(), "context": context_data}
+    current_time = datetime.now(timezone.utc).isoformat()
+    return {"timestamp": current_time, "context": context_data}
 
 
 # Initialize logging when module is imported

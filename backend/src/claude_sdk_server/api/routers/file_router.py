@@ -18,17 +18,22 @@ from pathlib import Path
 from typing import List, Optional
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Path as FastAPIPath, Query
+from fastapi import APIRouter, Depends, HTTPException, Path as FastAPIPath, Query
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 
 from src.claude_sdk_server.utils.logging_config import get_logger
+from src.claude_sdk_server.dependencies import require_auth
 
 # Configure logger
 logger = get_logger(__name__)
 
 # Create router
-router = APIRouter(prefix="/api/v1/files", tags=["files"])
+router = APIRouter(
+    prefix="/api/v1/files",
+    tags=["files"],
+    dependencies=[Depends(require_auth)],
+)
 
 # Security configuration
 ALLOWED_BASE_DIR = Path("./tmp")

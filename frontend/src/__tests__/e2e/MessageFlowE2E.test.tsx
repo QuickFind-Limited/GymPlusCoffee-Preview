@@ -10,13 +10,11 @@ import { mockAuthUser } from '../utils/test-utils';
  */
 
 // Mock Supabase auth for E2E tests
-const mockSupabaseAuth = {
-  getUser: vi.fn().mockResolvedValue({ data: { user: mockAuthUser } }),
-  signOut: vi.fn().mockResolvedValue({ error: null }),
-  onAuthStateChange: vi.fn().mockReturnValue({
-    data: { subscription: { unsubscribe: vi.fn() } }
-  }),
-};
+const mockSupabaseAuth = vi.hoisted(() => ({
+  getUser: vi.fn(),
+  signOut: vi.fn(),
+  onAuthStateChange: vi.fn(),
+}));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -27,6 +25,10 @@ vi.mock('@/integrations/supabase/client', () => ({
 // Mock services
 vi.mock('@/services/apiStreaming', () => ({
   StreamEvent: {},
+  apiStreamingService: {
+    streamQuery: vi.fn().mockResolvedValue(undefined),
+    getCurrentSessionId: vi.fn().mockReturnValue(null),
+  },
 }));
 
 // Mock child components for faster E2E tests
@@ -58,6 +60,10 @@ describe('Message Flow End-to-End Tests', () => {
     localStorage.clear();
     // Reset auth state
     mockSupabaseAuth.getUser.mockResolvedValue({ data: { user: mockAuthUser } });
+    mockSupabaseAuth.signOut.mockResolvedValue({ error: null });
+    mockSupabaseAuth.onAuthStateChange.mockReturnValue({
+      data: { subscription: { unsubscribe: vi.fn() } }
+    });
   });
 
   it('completes full journey from app load to conversation', async () => {

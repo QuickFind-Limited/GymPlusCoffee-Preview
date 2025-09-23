@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { UserProvider } from '@/contexts/UserContext';
 import { FinancialDataProvider } from '@/contexts/FinancialDataContext';
+import { ConversationProvider } from '@/contexts/ConversationContext';
 
 /**
  * Test utilities for message flow testing
@@ -30,7 +31,9 @@ const AllTheProviders: React.FC<AllTheProvidersProps> = ({ children }) => {
         <AuthProvider>
           <UserProvider>
             <FinancialDataProvider>
-              {children}
+              <ConversationProvider>
+                {children}
+              </ConversationProvider>
             </FinancialDataProvider>
           </UserProvider>
         </AuthProvider>

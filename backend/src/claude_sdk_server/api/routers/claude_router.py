@@ -14,6 +14,7 @@ from src.claude_sdk_server.services.claude_service import (
     get_claude_service,
 )
 from src.claude_sdk_server.streaming import get_event_manager
+from src.claude_sdk_server.dependencies import require_auth
 
 # Import SSE response
 try:
@@ -40,7 +41,11 @@ except ImportError:
             )
 
 
-router = APIRouter(prefix="/api/v1", tags=["claude"])
+router = APIRouter(
+    prefix="/api/v1",
+    tags=["claude"],
+    dependencies=[Depends(require_auth)],
+)
 
 
 def json_serializer(obj):

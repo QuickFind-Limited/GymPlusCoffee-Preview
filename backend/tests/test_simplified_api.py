@@ -4,6 +4,10 @@
 import asyncio
 
 import httpx
+import pytest
+
+
+pytestmark = pytest.mark.skip(reason="Manual integration test that requires the FastAPI server to be running.")
 
 
 async def test_api():

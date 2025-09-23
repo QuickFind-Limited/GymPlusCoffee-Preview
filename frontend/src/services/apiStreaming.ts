@@ -3,7 +3,9 @@
  * 
  * Ce service gère la connexion à l'API de streaming pour les conversations.
  * Il envoie les requêtes au serveur et traite les événements SSE en temps réel..
- */
+*/
+
+import { supabase } from '@/integrations/supabase/client';
 
 export interface StreamEventData {
   status?: string;
@@ -100,10 +102,23 @@ export class APIStreamingService {
     });
 
     try {
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
+
+      if (sessionError) {
+        throw new Error(sessionError.message);
+      }
+
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) {
+        throw new Error('Authentication required to start a streaming session');
+      }
+
       const response = await fetch(this.baseUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify(options),
         signal: this.currentController.signal,

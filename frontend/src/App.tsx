@@ -13,27 +13,40 @@ import {
 import { Logger } from "@/services/Logger";
 import { navigateToConversation } from "@/utils/navigationUtils";
 import Auth from "./pages/Auth";
+import AuthConfirm from "./pages/AuthConfirm";
 import Dashboard from "./pages/Dashboard";
 import DataSources from "./pages/DataSources";
 import Insights from "./pages/Insights";
-
-import AuthConfirm from "./pages/AuthConfirm";
 import Forecasts from "./pages/Forecasts";
-import NotFound from "./pages/NotFound";
 import ProductDetails from "./pages/ProductDetails";
 import ProductsCatalog from "./pages/ProductsCatalog";
+import NotFound from "./pages/NotFound";
 import Storage from "./pages/Storage";
 import VerifyEmail from "./pages/VerifyEmail";
 
-// import { AuthProvider, useAuth } from "./contexts/AuthContext";
-import { AuthProvider, useAuth } from "./contexts/AuthContextMock";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import { ConversationProvider } from "./contexts/ConversationContext";
 import { FinancialDataProvider } from "./contexts/FinancialDataContext";
-// import { UserProvider } from "./contexts/UserContext";
-import { UserProvider } from "./contexts/UserContextMock";
+import { UserProvider } from "./contexts/UserContext";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-// Authentication removed - all routes are now accessible
 const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
+        Checking authentication…
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" replace />;
+  }
+
   return children;
 };
 
@@ -51,6 +64,75 @@ const DashboardWithNavigation = () => {
   );
 };
 
+const AuthGateway = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user, loading } = useAuth();
+  const [isProcessingCode, setIsProcessingCode] = useState(false);
+
+  useEffect(() => {
+    const processAuthCode = async () => {
+      const currentUrl = new URL(window.location.href);
+      const code = currentUrl.searchParams.get("code");
+      const errorDescription = currentUrl.searchParams.get("error_description");
+
+      if (errorDescription) {
+        toast({
+          title: "Verification failed",
+          description: decodeURIComponent(errorDescription),
+          variant: "destructive",
+        });
+      }
+
+      if (code) {
+        setIsProcessingCode(true);
+        try {
+          const { error } = await supabase.auth.exchangeCodeForSession({ authCode: code });
+
+          if (error) {
+            toast({
+              title: "Verification failed",
+              description: error.message,
+              variant: "destructive",
+            });
+            currentUrl.searchParams.delete("code");
+            currentUrl.searchParams.delete("error_description");
+            window.history.replaceState({}, document.title, currentUrl.pathname);
+            navigate("/auth", { replace: true });
+            return;
+          }
+
+          // Clean the URL and navigate to the confirmation screen
+          window.history.replaceState({}, document.title, "/auth/confirm");
+          navigate("/auth/confirm", { replace: true });
+        } catch (err) {
+          toast({
+            title: "Verification failed",
+            description: err instanceof Error ? err.message : "Unknown error",
+            variant: "destructive",
+          });
+          navigate("/auth", { replace: true });
+        } finally {
+          setIsProcessingCode(false);
+        }
+        return; // Avoid processing normal navigation when a code was handled
+      }
+
+      if (!loading) {
+        navigate(user ? "/dashboard" : "/auth", { replace: true });
+      }
+    };
+
+    processAuthCode();
+  }, [user, loading, navigate, toast]);
+
+  return (
+    <div className="flex h-screen items-center justify-center text-sm text-muted-foreground">
+      {isProcessingCode ? "Confirming your email…" : "Redirecting…"}
+    </div>
+  );
+};
+
 const queryClient = new QueryClient();
 
 const RoutesWithProviders = () => {
@@ -60,11 +142,11 @@ const RoutesWithProviders = () => {
         <FinancialDataProvider>
           <ConversationProvider>
             <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              {/* Auth routes disabled - redirecting to dashboard */}
-              <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/auth/confirm" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/verify-email" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/" element={<AuthGateway />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/auth/confirm" element={<AuthConfirm />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
+
               <Route
                 path="/dashboard"
                 element={

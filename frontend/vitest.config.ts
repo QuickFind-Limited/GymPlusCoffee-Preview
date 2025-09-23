@@ -10,7 +10,7 @@ export default defineConfig({
     environment: 'happy-dom',
     
     // Setup files
-    setupFiles: ['./tests/setup.ts'],
+    setupFiles: [],
     
     // Test patterns
     include: [
@@ -24,7 +24,6 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: [
         'node_modules/',
-        'tests/setup.ts',
         'tests/**/*.d.ts',
         'src/**/*.d.ts',
         'dist/',

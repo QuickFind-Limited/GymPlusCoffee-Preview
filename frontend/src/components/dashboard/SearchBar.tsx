@@ -203,7 +203,7 @@ CRITICAL REQUIREMENTS FOR ALL RESPONSES:
           onKeyDown={handleKeyDown}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          placeholder='"What do I need to know about today across my data?"'
+        placeholder='Type your message (e.g. "What do I need to know about today across my data?")'
           className="w-full min-h-[3rem] max-h-[12.5rem] pl-4 pr-12 pt-3 pb-3 text-base bg-white dark:bg-[#303030] border-2 border-gray-200 dark:border-gray-700 rounded-2xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-300 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white shadow-lg resize-none overflow-hidden"
           disabled={isProcessing}
           rows={1}

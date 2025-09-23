@@ -19,14 +19,12 @@ import { extractMessageFromParams } from "@/utils/navigationUtils";
 import { Bell, Check, ClipboardList, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUser } from "@/contexts/UserContext";
 interface DashboardProps {
   onNavigateToConversation?: (message: string) => void;
 }
 const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
-  const [currentUser, setCurrentUser] = useState<{
-    name: string;
-    email: string;
-  } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoadingOrderSummary, setIsLoadingOrderSummary] = useState(false);
   const [showChatInterface, setShowChatInterface] = useState(false);
@@ -51,27 +49,14 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const { monthlySpendData } = useFinancialData();
-  useEffect(() => {
-    // "Dashboard useEffect running");
-    const checkUser = async () => {
-      // Auth disabled - using mock user
-      const mockUser = {
-        email: "demo@gympluscoffee.com",
-      };
-      setCurrentUser({
-        name: mockUser.email?.split("@")[0] || "User",
-        email: mockUser.email || "",
-      });
-    };
-    checkUser();
-  }, [navigate]);
+  const { user } = useUser();
 
   // Handle initial message from URL parameters - RUN IMMEDIATELY
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const messageParam = urlParams.get("message");
 
-    if (currentUser && messageParam) {
+    if (user && messageParam) {
       const initialMessage = extractMessageFromParams(urlParams);
 
       if (initialMessage) {
@@ -135,7 +120,7 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
         });
       }
     }
-  }, [currentUser, searchParams, setSearchParams, toast]);
+  }, [user, searchParams, setSearchParams, toast]);
 
   // Effet pour détecter une conversation active et afficher StreamingConversation
   useEffect(() => {
@@ -148,23 +133,22 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
       setShowOrderGeneration(false);
     }
   }, [conversation.messages, conversation.streamingEvents]);
+  const { signOut } = useAuth();
   const handleLogout = async () => {
-    // Auth disabled - mock logout
-    console.log("Mock logout - auth disabled");
-    // No actual logout or redirect needed
+    try {
+      await signOut();
+      navigate('/auth');
+    } catch (error) {
+      toast({
+        title: 'Sign out failed',
+        description: error instanceof Error ? error.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    }
   };
-  const notifyComingSoon = (feature: string) => {
-    toast({
-      title: "Coming soon",
-      description: `${feature} isn't available yet.`,
-    });
-  };
-  const handleQuickActionClick = (action: string) => {
-    notifyComingSoon(action);
-  };
+  const handleQuickActionClick = () => {};
   const handlePOGenerationComplete = () => {
     setIsGeneratingPO(false);
-    notifyComingSoon("Purchase order generation");
   };
   const handleChatSubmit = (query: string) => {
     console.log("🎯 handleChatSubmit called with query:", query);
@@ -193,18 +177,10 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
     setSearchQuery(suggestion);
     handleChatSubmit(suggestion);
   };
-  const handleOpenOrdersClick = () => {
-    notifyComingSoon("Open orders dashboard");
-  };
-  const handleQuotesClick = () => {
-    notifyComingSoon("Quotes dashboard");
-  };
-  const handleApprovalsClick = () => {
-    notifyComingSoon("Approvals workflow");
-  };
-  const handleNotificationsClick = () => {
-    notifyComingSoon("Notifications center");
-  };
+  const handleOpenOrdersClick = () => {};
+  const handleQuotesClick = () => {};
+  const handleApprovalsClick = () => {};
+  const handleNotificationsClick = () => {};
   const totalSpend = monthlySpendData.reduce(
     (sum, item) => sum + item.spend,
     0
@@ -261,7 +237,6 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
     conversation.clearConversation();
   };
 
-  if (!currentUser) return null;
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gray-100 dark:bg-black">

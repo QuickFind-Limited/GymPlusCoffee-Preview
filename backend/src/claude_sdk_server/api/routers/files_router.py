@@ -19,18 +19,23 @@ from pathlib import Path
 from typing import Optional
 from urllib.parse import unquote
 
-from fastapi import APIRouter, HTTPException, Path as PathParam, Query
+from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Query
 from fastapi.responses import FileResponse, Response
 from fastapi.security.utils import get_authorization_scheme_param
 
 from ...models.dto import FileInfo
 from ...utils.logging_config import get_logger
+from ...dependencies import require_auth
 
 # Configure logger
 logger = get_logger(__name__)
 
 # Create router
-router = APIRouter(prefix="/api/v1/files/legacy", tags=["files-legacy"])
+router = APIRouter(
+    prefix="/api/v1/files/legacy",
+    tags=["files-legacy"],
+    dependencies=[Depends(require_auth)],
+)
 
 # Constants
 ATTACHMENTS_BASE_DIR = Path("./tmp")

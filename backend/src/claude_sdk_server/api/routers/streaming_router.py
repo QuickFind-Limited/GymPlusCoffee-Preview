@@ -63,6 +63,7 @@ from ...streaming import (
     websocket_connection,
 )
 from ...utils.logging_config import get_logger
+from ...dependencies import require_auth, require_auth_for_websocket
 
 # Configure logger
 router_logger = get_logger(__name__)
@@ -102,6 +103,7 @@ async def stream_events_sse(
     request: Request,
     subscription: EventSubscription = Depends(create_subscription),
     manager: EventStreamManager = Depends(get_event_manager),
+    _user=Depends(require_auth),
 ):
     """
     Stream events via Server-Sent Events (SSE).
@@ -185,6 +187,12 @@ async def websocket_events(
     - Send: {"action": "ping"}
     - Receive: Event objects as JSON
     """
+
+    try:
+        require_auth_for_websocket(dict(websocket.headers))
+    except HTTPException as exc:
+        await websocket.close(code=4401, reason=exc.detail)
+        return
 
     await websocket.accept()
     manager = get_event_manager()
@@ -406,6 +414,7 @@ async def stream_events_jsonl(
 @router.get("/status")
 async def get_stream_status(
     manager: EventStreamManager = Depends(get_event_manager),
+    _user=Depends(require_auth),
 ) -> EventStreamStatus:
     """
     Get current streaming system status.
@@ -426,6 +435,7 @@ async def get_recent_events(
     ),
     session_id: Optional[str] = Query(None, description="Filter by session ID"),
     manager: EventStreamManager = Depends(get_event_manager),
+    _user=Depends(require_auth),
 ) -> List[dict]:
     """
     Get recent events from the stream.
@@ -446,7 +456,9 @@ async def get_recent_events(
 
 @router.delete("/clients/{client_id}")
 async def disconnect_client(
-    client_id: str, manager: EventStreamManager = Depends(get_event_manager)
+    client_id: str,
+    manager: EventStreamManager = Depends(get_event_manager),
+    _user=Depends(require_auth),
 ):
     """
     Manually disconnect a client.
@@ -461,7 +473,10 @@ async def disconnect_client(
 
 
 @router.get("/clients")
-async def list_active_clients(manager: EventStreamManager = Depends(get_event_manager)):
+async def list_active_clients(
+    manager: EventStreamManager = Depends(get_event_manager),
+    _user=Depends(require_auth),
+):
     """
     List all active streaming clients.
 
@@ -506,6 +521,7 @@ async def emit_test_event(
         None, description="Session ID for the test event"
     ),
     manager: EventStreamManager = Depends(get_event_manager),
+    _user=Depends(require_auth),
 ):
     """
     Emit a test event for debugging streaming functionality.

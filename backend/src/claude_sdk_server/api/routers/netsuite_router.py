@@ -8,9 +8,14 @@ from datetime import datetime
 from src.claude_sdk_server.models.dto import QueryRequest
 from src.claude_sdk_server.services.claude_service import ClaudeService, get_claude_service
 from src.claude_sdk_server.utils.logging_config import get_logger
+from src.claude_sdk_server.dependencies import require_auth
 
 logger = get_logger(__name__)
-router = APIRouter(prefix="/api/v1/netsuite", tags=["netsuite"])
+router = APIRouter(
+    prefix="/api/v1/netsuite",
+    tags=["netsuite"],
+    dependencies=[Depends(require_auth)],
+)
 
 class NetSuiteRequest(BaseModel):
     """Request model for NetSuite queries."""

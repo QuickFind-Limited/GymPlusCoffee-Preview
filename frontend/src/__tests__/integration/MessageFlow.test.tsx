@@ -10,10 +10,14 @@ import { mockAuthUser } from '../utils/test-utils';
  */
 
 // Mock Supabase auth
-const mockSupabaseAuth = {
-  getUser: vi.fn().mockResolvedValue({ data: { user: mockAuthUser } }),
-  signOut: vi.fn().mockResolvedValue({ error: null }),
-};
+const mockSupabaseAuth = vi.hoisted(() => ({
+  getUser: vi.fn(),
+  getSession: vi.fn(),
+  onAuthStateChange: vi.fn(),
+  signInWithPassword: vi.fn(),
+  signUp: vi.fn(),
+  signOut: vi.fn(),
+}));
 
 vi.mock('@/integrations/supabase/client', () => ({
   supabase: {
@@ -34,6 +38,10 @@ vi.mock('react-router-dom', async () => {
 // Mock streaming service
 vi.mock('@/services/apiStreaming', () => ({
   StreamEvent: {},
+  apiStreamingService: {
+    streamQuery: vi.fn().mockResolvedValue(undefined),
+    getCurrentSessionId: vi.fn().mockReturnValue(null),
+  },
 }));
 
 // Mock child components that aren't core to message flow
@@ -64,6 +72,12 @@ describe('Message Flow Integration Tests', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    mockSupabaseAuth.getUser.mockResolvedValue({ data: { user: mockAuthUser }, error: null });
+    mockSupabaseAuth.getSession.mockResolvedValue({ data: { session: { user: mockAuthUser } }, error: null });
+    mockSupabaseAuth.onAuthStateChange.mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } });
+    mockSupabaseAuth.signInWithPassword.mockResolvedValue({ error: null });
+    mockSupabaseAuth.signUp.mockResolvedValue({ data: { user: mockAuthUser }, error: null });
+    mockSupabaseAuth.signOut.mockResolvedValue({ error: null });
   });
 
   it('renders dashboard with search interface initially', async () => {
