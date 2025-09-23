@@ -3,6 +3,7 @@ import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StreamEvent, apiStreamingService } from "@/services/apiStreaming";
+import { authorizedFetch } from "@/services/authorizedFetch";
 import {
   Activity,
   Bot,
@@ -287,7 +288,7 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
         sessionId || ""
       )}/attachments/${encodeURIComponent(filename)}`;
 
-      const response = await fetch(url);
+      const response = await authorizedFetch(url);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }

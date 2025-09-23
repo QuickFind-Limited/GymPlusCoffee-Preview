@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
+import { authorizedFetch } from "@/services/authorizedFetch";
 
 let pdfjsLibPromise: Promise<typeof import("pdfjs-dist/build/pdf")> | null = null;
 let pdfWorkerInitialized = false;
@@ -50,9 +51,13 @@ const PdfPreview: React.FC<PdfPreviewProps> = ({ url, className }) => {
         setLoading(true);
         setError(null);
 
+        const fetchPromise = url.startsWith("blob:") || url.startsWith("data:")
+          ? fetch(url, { signal: abortController.signal })
+          : authorizedFetch(url, { signal: abortController.signal });
+
         const [pdfjsLib, response] = await Promise.all([
           loadPdfJs(),
-          fetch(url, { signal: abortController.signal }),
+          fetchPromise,
         ]);
 
         if (!response.ok) {

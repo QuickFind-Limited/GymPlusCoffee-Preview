@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Download, FileJson, FileSpreadsheet, FileText, FileImage, X } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import PdfPreview from "@/components/PdfPreview";
 import * as XLSX from "xlsx";
+import { authorizedFetch } from "@/services/authorizedFetch";
 
 type FileKind = "markdown" | "json" | "csv" | "text" | "pdf" | "image" | "excel";
 
@@ -32,6 +33,14 @@ export const FilePreviewSheet: React.FC<FilePreviewSheetProps> = ({
   const [content, setContent] = useState<string>("");
   const [pdfUrl, setPdfUrl] = useState<string>("");
   const [excelData, setExcelData] = useState<any[][]>([]);
+  const objectUrlRef = useRef<string | null>(null);
+
+  const replaceObjectUrl = (nextUrl: string | null) => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+    }
+    objectUrlRef.current = nextUrl;
+  };
 
   const fileKind: FileKind = useMemo(() => {
     const lower = filename.toLowerCase();
@@ -124,30 +133,34 @@ export const FilePreviewSheet: React.FC<FilePreviewSheetProps> = ({
       setContent("");
       setPdfUrl("");
       setExcelData([]);
+      replaceObjectUrl(null);
       try {
         const url = `${API_BASE}/files/conversations/${encodeURIComponent(
           conversationId
         )}/attachments/${encodeURIComponent(filename)}`;
+        const response = await authorizedFetch(url);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
 
-        // For PDFs and images, we don't fetch the content for preview
         if (fileKind === "pdf") {
-          setPdfUrl(url);
-          setLoading(false);
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          replaceObjectUrl(blobUrl);
+          setPdfUrl(blobUrl);
           return;
         }
 
         if (fileKind === "image") {
-          setContent(url); // Store the URL for image display
-          setLoading(false);
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          replaceObjectUrl(blobUrl);
+          setContent(blobUrl);
           return;
         }
 
         if (fileKind === "excel") {
-          const res = await fetch(url);
-          if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`);
-          }
-          const arrayBuffer = await res.arrayBuffer();
+          const arrayBuffer = await response.arrayBuffer();
           const workbook = XLSX.read(arrayBuffer, { type: "array" });
           const firstSheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[firstSheetName];
@@ -157,15 +170,10 @@ export const FilePreviewSheet: React.FC<FilePreviewSheetProps> = ({
             dateNF: "yyyy-mm-dd"
           });
           setExcelData(data as any[][]);
-          setLoading(false);
           return;
         }
 
-        const res = await fetch(url);
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-        const text = await res.text();
+        const text = await response.text();
         if (fileKind === "json") {
           try {
             const obj = JSON.parse(text);
@@ -184,6 +192,18 @@ export const FilePreviewSheet: React.FC<FilePreviewSheetProps> = ({
     };
     fetchContent();
   }, [open, conversationId, filename, fileKind]);
+
+  useEffect(() => {
+    if (!open) {
+      replaceObjectUrl(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    return () => {
+      replaceObjectUrl(null);
+    };
+  }, []);
 
   const title = displayName || filename;
 
@@ -208,7 +228,7 @@ export const FilePreviewSheet: React.FC<FilePreviewSheetProps> = ({
         conversationId
       )}/attachments/${encodeURIComponent(filename)}`;
 
-      const response = await fetch(url);
+      const response = await authorizedFetch(url);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }

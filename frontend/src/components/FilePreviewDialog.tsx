@@ -8,9 +8,10 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Download, FileText, Table, X } from "lucide-react";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import PdfPreview from "@/components/PdfPreview";
 import * as XLSX from 'xlsx';
+import { authorizedFetch } from "@/services/authorizedFetch";
 
 type FileKind = "markdown" | "json" | "csv" | "text" | "excel" | "pdf";
 
@@ -36,6 +37,14 @@ export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({
   const [content, setContent] = useState<string>("");
   const [excelData, setExcelData] = useState<any[][]>([]);
   const [pdfUrl, setPdfUrl] = useState<string>("");
+  const objectUrlRef = useRef<string | null>(null);
+
+  const replaceObjectUrl = (nextUrl: string | null) => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+    }
+    objectUrlRef.current = nextUrl;
+  };
 
   const fileKind: FileKind = useMemo(() => {
     const lower = filename.toLowerCase();
@@ -117,6 +126,7 @@ export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({
       setContent("");
       setExcelData([]);
       setPdfUrl("");
+      replaceObjectUrl(null);
 
       try {
         const url = `${API_BASE}/files/conversations/${encodeURIComponent(
@@ -124,11 +134,16 @@ export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({
         )}/attachments/${encodeURIComponent(filename)}`;
 
         if (fileKind === "pdf") {
-          // For PDFs, just set the URL for iframe display
-          setPdfUrl(url);
+          const res = await authorizedFetch(url);
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          replaceObjectUrl(blobUrl);
+          setPdfUrl(blobUrl);
         } else if (fileKind === "excel") {
-          // For Excel files, fetch as array buffer and parse
-          const res = await fetch(url);
+          const res = await authorizedFetch(url);
           if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
           }
@@ -149,7 +164,7 @@ export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({
           setExcelData(jsonData as any[][]);
         } else {
           // For text-based files
-          const res = await fetch(url);
+          const res = await authorizedFetch(url);
           if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
           }
@@ -177,6 +192,18 @@ export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({
     fetchContent();
   }, [open, conversationId, filename, fileKind]);
 
+  useEffect(() => {
+    if (!open) {
+      replaceObjectUrl(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    return () => {
+      replaceObjectUrl(null);
+    };
+  }, []);
+
   const title = displayName || filename;
 
   const handleDownload = async () => {
@@ -185,7 +212,7 @@ export const FilePreviewDialog: React.FC<FilePreviewDialogProps> = ({
         conversationId
       )}/attachments/${encodeURIComponent(filename)}`;
 
-      const response = await fetch(url);
+      const response = await authorizedFetch(url);
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
