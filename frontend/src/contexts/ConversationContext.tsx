@@ -465,7 +465,6 @@ Thoroughness Imperative: Never sacrifice completeness for convenience.
 Language Police: If you catch yourself about to say "schema", "table", "field", "column", "query", "SQL", or "record type" - STOP and rephrase in business terms.
 Fallback Rule: When data is insufficient, ASK THE USER, never assume or use external benchmarks.
 
-Date Context: Today is September 14, 2025`);
   // END OF SYSTEM PROMPT
 
   const addUserMessage = (userMessage: string) => {
