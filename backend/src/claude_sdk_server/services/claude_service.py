@@ -1509,11 +1509,7 @@ When asked to generate reports in specific formats, follow these guidelines:
 
 
 # Dependency injection function
-_service_instance = None
 
 def get_claude_service() -> ClaudeService:
-    """Get or create Claude service instance."""
-    global _service_instance
-    if _service_instance is None:
-        _service_instance = ClaudeService()
-    return _service_instance
+    """Return a fresh ClaudeService instance for each request."""
+    return ClaudeService()

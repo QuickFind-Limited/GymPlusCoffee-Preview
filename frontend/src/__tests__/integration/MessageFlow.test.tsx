@@ -60,7 +60,6 @@ vi.mock('@/components/dashboard/ReasoningDisplay', () => ({
 }));
 
 describe('Message Flow Integration Tests', () => {
-  const mockOnNavigateToOrderSummary = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -68,7 +67,7 @@ describe('Message Flow Integration Tests', () => {
   });
 
   it('renders dashboard with search interface initially', async () => {
-    render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+    render(<Dashboard />);
     
     await waitFor(() => {
       expect(screen.getByText(/what do you need to do today/i)).toBeInTheDocument();
@@ -77,7 +76,7 @@ describe('Message Flow Integration Tests', () => {
   });
 
   it('transitions from dashboard to chat interface when message is submitted', async () => {
-    render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+    render(<Dashboard />);
     
     await waitFor(() => {
       expect(screen.getByText(/what do you need to do today/i)).toBeInTheDocument();
@@ -93,7 +92,7 @@ describe('Message Flow Integration Tests', () => {
   });
 
   it('handles forecast query flow from dashboard to reasoning to response', async () => {
-    render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+    render(<Dashboard />);
     
     await waitFor(() => {
       const searchInput = screen.getByPlaceholderText(/type your message/i);
@@ -113,7 +112,7 @@ describe('Message Flow Integration Tests', () => {
   });
 
   it('handles analysis query flow correctly', async () => {
-    render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+    render(<Dashboard />);
     
     await waitFor(() => {
       const searchInput = screen.getByPlaceholderText(/type your message/i);
@@ -131,7 +130,7 @@ describe('Message Flow Integration Tests', () => {
   });
 
   it('handles action query flow for purchase orders', async () => {
-    render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+    render(<Dashboard />);
     
     await waitFor(() => {
       const searchInput = screen.getByPlaceholderText(/type your message/i);
@@ -149,7 +148,7 @@ describe('Message Flow Integration Tests', () => {
   });
 
   it('handles streaming conversation transition correctly', async () => {
-    render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+    render(<Dashboard />);
     
     await waitFor(() => {
       const searchInput = screen.getByPlaceholderText(/type your message/i);
@@ -164,7 +163,7 @@ describe('Message Flow Integration Tests', () => {
   });
 
   it('preserves message flow state during navigation', async () => {
-    render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+    render(<Dashboard />);
     
     // Submit initial message
     await waitFor(() => {
@@ -192,7 +191,7 @@ describe('Message Flow Integration Tests', () => {
   });
 
   it('handles quick action prompts correctly', async () => {
-    render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+    render(<Dashboard />);
     
     await waitFor(() => {
       expect(screen.getByText(/what do you need to do today/i)).toBeInTheDocument();
@@ -208,7 +207,7 @@ describe('Message Flow Integration Tests', () => {
   });
 
   it('handles conversation reset when returning to dashboard', async () => {
-    render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+    render(<Dashboard />);
     
     // Start a conversation
     await waitFor(() => {
@@ -237,12 +236,12 @@ describe('Message Flow Integration Tests', () => {
       mockSupabaseAuth.getUser.mockRejectedValueOnce(new Error('Auth error'));
       
       expect(() => {
-        render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+        render(<Dashboard />);
       }).not.toThrow();
     });
 
     it('handles message submission errors', async () => {
-      render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+      render(<Dashboard />);
       
       await waitFor(() => {
         const searchInput = screen.getByPlaceholderText(/type your message/i);
@@ -259,7 +258,7 @@ describe('Message Flow Integration Tests', () => {
 
   describe('Message Persistence', () => {
     it('saves and restores conversation state', async () => {
-      render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+      render(<Dashboard />);
       
       // Submit a message
       await waitFor(() => {
@@ -288,7 +287,7 @@ describe('Message Flow Integration Tests', () => {
       // Mock different viewport sizes
       Object.defineProperty(window, 'innerWidth', { value: 320 });
       
-      render(<Dashboard onNavigateToOrderSummary={mockOnNavigateToOrderSummary} />);
+      render(<Dashboard />);
       
       await waitFor(() => {
         expect(screen.getByPlaceholderText(/type your message/i)).toBeInTheDocument();

@@ -1,19 +1,16 @@
 """NetSuite integration router for Claude Code SDK."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 from src.claude_sdk_server.models.dto import QueryRequest
-from src.claude_sdk_server.services.claude_service import ClaudeService
+from src.claude_sdk_server.services.claude_service import ClaudeService, get_claude_service
 from src.claude_sdk_server.utils.logging_config import get_logger
 
 logger = get_logger(__name__)
 router = APIRouter(prefix="/api/v1/netsuite", tags=["netsuite"])
-
-# Initialize Claude service
-claude_service = ClaudeService()
 
 class NetSuiteRequest(BaseModel):
     """Request model for NetSuite queries."""
@@ -117,7 +114,10 @@ Remember: YOU write the SQL. YOU discover the data structure. YOU adapt when que
 """
 
 @router.post("/clarify", response_model=NetSuiteResponse)
-async def clarify_request(request: NetSuiteRequest):
+async def clarify_request(
+    request: NetSuiteRequest,
+    service: ClaudeService = Depends(get_claude_service),
+):
     """
     Process a NetSuite request and return clarifications.
 
@@ -166,7 +166,7 @@ async def clarify_request(request: NetSuiteRequest):
         """
 
         # Let Claude Code SDK handle everything
-        response = await claude_service.query(
+        response = await service.query(
             request=QueryRequest(
                 prompt=prompt,
                 session_id=request.session_id,
@@ -234,7 +234,10 @@ async def clarify_request(request: NetSuiteRequest):
         )
 
 @router.post("/execute", response_model=NetSuiteResponse)
-async def execute_action(request: NetSuiteRequest):
+async def execute_action(
+    request: NetSuiteRequest,
+    service: ClaudeService = Depends(get_claude_service),
+):
     """
     Execute a NetSuite action (create PO, update inventory, etc).
 
@@ -268,7 +271,7 @@ async def execute_action(request: NetSuiteRequest):
         USE MCP TOOLS for this execution step, NOT netsuite_helper.
         """
 
-        response = await claude_service.query(
+        response = await service.query(
             request=QueryRequest(
                 prompt=prompt,
                 session_id=request.session_id,
@@ -294,7 +297,9 @@ async def execute_action(request: NetSuiteRequest):
         )
 
 @router.get("/test")
-async def test_netsuite_connection():
+async def test_netsuite_connection(
+    service: ClaudeService = Depends(get_claude_service),
+):
     """Test NetSuite connection and credentials."""
 
     logger.info("Testing NetSuite connection...")
@@ -311,7 +316,7 @@ async def test_netsuite_connection():
     """
 
     try:
-        response = await claude_service.query(
+        response = await service.query(
             request=QueryRequest(
                 prompt=prompt,
                 max_turns=5,

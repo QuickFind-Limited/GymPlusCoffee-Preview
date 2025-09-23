@@ -33,17 +33,6 @@ export const navigateToConversation = (navigate: NavigateFunction, message: stri
  * @param navigate - React Router navigate function
  * @param query - The search query to pass to the order summary page
  */
-export const navigateToOrderSummary = (navigate: NavigateFunction, query: string) => {
-  const encodedQuery = encodeURIComponent(query.trim());
-  navigate(`/order-summary?query=${encodedQuery}`);
-};
-
-/**
- * Extracts message parameter from URL search params safely
- * 
- * @param searchParams - URLSearchParams object
- * @returns Decoded message or null if not present or invalid
- */
 export const extractMessageFromParams = (searchParams: URLSearchParams): string | null => {
   const messageParam = searchParams.get('message');
   if (!messageParam) return null;

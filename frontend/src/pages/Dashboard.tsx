@@ -16,17 +16,13 @@ import {
   StreamEventData,
 } from "@/services/apiStreaming";
 import { extractMessageFromParams } from "@/utils/navigationUtils";
-import { Bell, Check, ClipboardList, FileText, Package } from "lucide-react";
+import { Bell, Check, ClipboardList, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 interface DashboardProps {
-  onNavigateToOrderSummary: (query: string) => void;
   onNavigateToConversation?: (message: string) => void;
 }
-const Dashboard = ({
-  onNavigateToOrderSummary,
-  onNavigateToConversation,
-}: DashboardProps) => {
+const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   const [currentUser, setCurrentUser] = useState<{
     name: string;
     email: string;
@@ -157,66 +153,18 @@ const Dashboard = ({
     console.log("Mock logout - auth disabled");
     // No actual logout or redirect needed
   };
-  const handleSupplierClick = () => {
-    navigate("/suppliers");
+  const notifyComingSoon = (feature: string) => {
+    toast({
+      title: "Coming soon",
+      description: `${feature} isn't available yet.`,
+    });
   };
-  const handleInventoryClick = () => {
-    navigate("/inventory");
-  };
-  const handleOrdersClick = () => {
-    navigate("/orders");
-  };
-  const handleDashboardClick = () => {
-    navigate("/analytics-dashboard");
-  };
-  const handleDataSourcesClick = () => {
-    navigate("/data-sources");
-  };
-  const handleQuickActionClick = (action: string, orderData?: any) => {
-    // "Quick action clicked:", action, orderData);
-    if (orderData) {
-      // Navigate to purchase order editor with the order data
-      const orderDataToPass =
-        orderData.products && orderData.supplier
-          ? orderData
-          : {
-              supplier: orderData.supplier,
-              products: [
-                {
-                  title: orderData.title,
-                  description: orderData.description || "",
-                  quantity: orderData.quantity,
-                  estimatedCost: orderData.estimatedCost,
-                  icon: <Package className="h-4 w-4" />,
-                },
-              ],
-              totalEstimatedCost: orderData.estimatedCost,
-              urgency: orderData.urgency,
-              action: `Generate PO for ${orderData.title} from ${orderData.supplier}`,
-            };
-
-      // Store order data in sessionStorage to pass to editor
-      // 'Dashboard - Storing in sessionStorage:', orderDataToPass);
-
-      // ⚠️ DEBUG: Verify exact data being stored
-      // '🚨 DEBUG: Dashboard - EXACT data being stored in sessionStorage:');
-      // '🚨 orderDataToPass.products:', JSON.stringify(orderDataToPass.products, null, 2));
-
-      sessionStorage.setItem(
-        "purchaseOrderData",
-        JSON.stringify(orderDataToPass)
-      );
-
-      // Show generating transition then navigate
-      setIsGeneratingPO(true);
-    } else {
-      // Fall back to search query for legacy actions
-      setSearchQuery(action);
-    }
+  const handleQuickActionClick = (action: string) => {
+    notifyComingSoon(action);
   };
   const handlePOGenerationComplete = () => {
     setIsGeneratingPO(false);
-    navigate("/purchase-order-editor");
+    notifyComingSoon("Purchase order generation");
   };
   const handleChatSubmit = (query: string) => {
     console.log("🎯 handleChatSubmit called with query:", query);
@@ -246,20 +194,16 @@ const Dashboard = ({
     handleChatSubmit(suggestion);
   };
   const handleOpenOrdersClick = () => {
-    // "Open orders clicked");
-    navigate("/orders");
+    notifyComingSoon("Open orders dashboard");
   };
   const handleQuotesClick = () => {
-    // "Quotes clicked");
-    navigate("/quotes");
+    notifyComingSoon("Quotes dashboard");
   };
   const handleApprovalsClick = () => {
-    // "Approvals clicked");
-    navigate("/approvals");
+    notifyComingSoon("Approvals workflow");
   };
   const handleNotificationsClick = () => {
-    // "Notifications clicked");
-    navigate("/notifications");
+    notifyComingSoon("Notifications center");
   };
   const totalSpend = monthlySpendData.reduce(
     (sum, item) => sum + item.spend,

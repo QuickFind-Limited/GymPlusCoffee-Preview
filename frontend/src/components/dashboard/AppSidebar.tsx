@@ -1,10 +1,9 @@
 
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ClipboardList, FileText, Database, Clock, Edit, Search, CreditCard, Settings, Building2, BarChart3, LogOut, Package, MessageSquare, Archive } from 'lucide-react';
+import { ClipboardList, FileText, Database, Clock, Edit, CreditCard, Settings, Building2, BarChart3, LogOut, Package, MessageSquare, Archive } from 'lucide-react';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarGroup, SidebarGroupLabel, SidebarGroupContent, SidebarSeparator, SidebarFooter } from "@/components/ui/sidebar";
 import { useToast } from "@/hooks/use-toast";
-import SearchDialog from './SearchDialog';
 import PaymentDialog from '../PaymentDialog';
 
 interface AppSidebarProps {
@@ -15,7 +14,6 @@ interface AppSidebarProps {
 const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isPaymentDialogOpen, setIsPaymentDialogOpen] = useState(false);
   const { toast } = useToast();
 
@@ -75,25 +73,19 @@ const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
     });
   };
 
-  const handleSearchClick = () => {
-    setIsSearchOpen(true);
-  };
-
-  const handleInvoiceHistoryClick = (invoiceText: string) => {
-    const invoiceId = invoiceText.split(' - ')[0];
-    navigate(`/invoices?invoice=${invoiceId}`);
-  };
-
-  const handleOrderHistoryClick = () => {
-    navigate('/orders');
-  };
-
   const handleGenericHistoryClick = () => {
     navigate(location.pathname);
   };
 
   const handleSettingsClick = () => {
     navigate('/settings');
+  };
+
+  const handleFeatureUnavailable = (feature: string) => {
+    toast({
+      title: "Coming soon",
+      description: `${feature} isn't available yet.`,
+    });
   };
 
   const navigationItems = [
@@ -113,20 +105,6 @@ const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
 
   const getHistoryContent = () => {
     const historyMap = {
-      '/orders': {
-        title: "History",
-        items: [
-          "Hoodies",
-          "Fleeces", 
-          "Performance",
-          "Inventory",
-          "Accessories",
-          "Forecasting",
-          "Stockouts",
-          "Suppliers"
-        ],
-        onClick: handleOrderHistoryClick
-      },
       '/invoices': {
         title: "History", 
         items: [
@@ -139,7 +117,7 @@ const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
           "Alerts",
           "Discounts"
         ],
-        onClick: handleInvoiceHistoryClick
+        onClick: () => handleFeatureUnavailable('Invoice history')
       },
       '/data-sources': {
         title: "History",
@@ -157,7 +135,7 @@ const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
       }
     };
 
-    return historyMap[location.pathname as keyof typeof historyMap] || historyMap['/orders'];
+    return historyMap[location.pathname as keyof typeof historyMap] || historyMap['/data-sources'];
   };
   
   const historyContent = getHistoryContent();
@@ -166,15 +144,6 @@ const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
     <>
       <Sidebar className="w-64">
         <SidebarHeader className="p-4 pb-2">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleSearchClick} className="w-full justify-start text-base font-medium px-px py-0 my-0 mx-0">
-                <Search className="h-5 w-5" />
-                <span>Search</span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
-
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton onClick={handleNewChat} className="w-full justify-start text-base font-medium px-px py-0 my-0 mx-0">
@@ -264,7 +233,6 @@ const AppSidebar = ({ onLogout, onNewQuery }: AppSidebarProps) => {
         </SidebarFooter>
       </Sidebar>
 
-      <SearchDialog isOpen={isSearchOpen} onOpenChange={setIsSearchOpen} />
       <PaymentDialog
         isOpen={isPaymentDialogOpen}
         onOpenChange={setIsPaymentDialogOpen}

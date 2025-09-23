@@ -11,25 +11,17 @@ import {
 } from "react-router-dom";
 // import { ThemeProvider } from "next-themes";
 import { Logger } from "@/services/Logger";
-import {
-  navigateToConversation,
-  navigateToOrderSummary,
-} from "@/utils/navigationUtils";
+import { navigateToConversation } from "@/utils/navigationUtils";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import DataSources from "./pages/DataSources";
 import Insights from "./pages/Insights";
-import Suppliers from "./pages/Suppliers";
 
 import AuthConfirm from "./pages/AuthConfirm";
 import Forecasts from "./pages/Forecasts";
 import NotFound from "./pages/NotFound";
-import OrderConfirmation from "./pages/OrderConfirmation";
-import Orders from "./pages/Orders";
-import OrderSummary from "./pages/OrderSummary";
 import ProductDetails from "./pages/ProductDetails";
 import ProductsCatalog from "./pages/ProductsCatalog";
-import PurchaseOrderEditor from "./pages/PurchaseOrderEditor";
 import Storage from "./pages/Storage";
 import VerifyEmail from "./pages/VerifyEmail";
 
@@ -48,17 +40,12 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
 const DashboardWithNavigation = () => {
   const navigate = useNavigate();
 
-  const handleNavigateToOrderSummary = (query: string) => {
-    navigateToOrderSummary(navigate, query);
-  };
-
   const handleNavigateToConversation = (message: string) => {
     navigateToConversation(navigate, message);
   };
 
   return (
     <Dashboard
-      onNavigateToOrderSummary={handleNavigateToOrderSummary}
       onNavigateToConversation={handleNavigateToConversation}
     />
   );
@@ -95,50 +82,10 @@ const RoutesWithProviders = () => {
                 }
               />
               <Route
-                path="/suppliers"
-                element={
-                  <ProtectedRoute>
-                    <Suppliers />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
                 path="/product/:id"
                 element={
                   <ProtectedRoute>
                     <ProductDetails />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/order-summary"
-                element={
-                  <ProtectedRoute>
-                    <OrderSummary />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/order-confirmation"
-                element={
-                  <ProtectedRoute>
-                    <OrderConfirmation />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/orders"
-                element={
-                  <ProtectedRoute>
-                    <Orders />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/purchase-order-editor"
-                element={
-                  <ProtectedRoute>
-                    <PurchaseOrderEditor />
                   </ProtectedRoute>
                 }
               />
