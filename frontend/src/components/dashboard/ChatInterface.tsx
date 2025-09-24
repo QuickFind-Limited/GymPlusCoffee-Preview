@@ -81,11 +81,13 @@ interface ChatMessage {
 interface ChatInterfaceProps {
   initialQuery?: string;
   onSubmit: (query: string) => void | Promise<void>;
+  disableLocalAssistantResponses?: boolean;
 }
 
 const ChatInterface = ({
   initialQuery,
   onSubmit,
+  disableLocalAssistantResponses = false,
 }: ChatInterfaceProps) => {
   console.log('🎯 ChatInterface mounted with initialQuery:', initialQuery);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -98,6 +100,15 @@ const ChatInterface = ({
   const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [finishedMessages, setFinishedMessages] = useState<Record<string, boolean>>({});
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const submitButtonClass = (hasText: boolean) =>
+    [
+      'absolute bottom-3 right-3 flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 transition-colors',
+      hasText
+        ? 'bg-gray-700 text-white hover:bg-gray-800'
+        : 'bg-gray-100 text-gray-500 hover:bg-gray-200',
+      'disabled:cursor-not-allowed disabled:opacity-60'
+    ].join(' ');
+
 
   // Load conversation history from localStorage on mount
   useEffect(() => {
@@ -174,30 +185,36 @@ const ChatInterface = ({
   // Enhanced effect to handle initial message as first conversation entry
   useEffect(() => {
     console.log('🔍 Initial query effect triggered:', { initialQuery, messagesLength: messages.length });
-    
-    // Only process if we have an initial query and messages array is empty (after being cleared above)
+
     if (initialQuery && initialQuery.trim() && messages.length === 0) {
-      console.log('✅ Adding initial query as first message:', initialQuery);
-      
-      // Start with a fresh conversation for the initial query
+      const trimmed = initialQuery.trim();
+      console.log('✅ Adding initial query as first message:', trimmed);
+
       const userMessage: ChatMessage = {
         id: Date.now().toString(),
-        content: initialQuery.trim(),
+        content: trimmed,
         role: 'user',
-        timestamp: new Date()
+        timestamp: new Date(),
       };
-      
+
       setMessages([userMessage]);
-      
-      // Process the assistant response after a brief delay
+
+      if (disableLocalAssistantResponses) {
+        void onSubmit(trimmed);
+        return;
+      }
+
       setTimeout(() => {
-        handleInitialQueryResponse(initialQuery.trim());
+        handleInitialQueryResponse(trimmed);
       }, 500);
     }
-  }, [initialQuery, messages.length]);
+  }, [initialQuery, messages.length, disableLocalAssistantResponses, onSubmit]);
 
   // Handle initial query response
   const handleInitialQueryResponse = (query: string) => {
+    if (disableLocalAssistantResponses) {
+      return;
+    }
     // Determine response type based on query analysis
     const promptType = determinePromptType(query);
     const iframeTagMatch = query.match(/<iframe[^>]*src=["']([^"']+)["'][^>]*>/i);
@@ -639,6 +656,10 @@ Note: This order will be assigned PO number PO-2025-0847 once confirmed.`,
     setIsCollapsingHistory(false);
     setIsInitialLoad(false);
 
+    if (disableLocalAssistantResponses) {
+      return;
+    }
+
     // Determine response type based on query analysis
     const promptType = determinePromptType(query);
     const iframeTagMatch = query.match(/<iframe[^>]*src=["']([^"']+)["'][^>]*>/i);
@@ -699,56 +720,7 @@ Note: This order will be assigned PO number PO-2025-0847 once confirmed.`,
   ];
 
   const handleQuickPrompt = (prompt: string) => {
-    const newMessage: ChatMessage = {
-      id: Date.now().toString(),
-      content: prompt,
-      role: 'user',
-      timestamp: new Date()
-    };
-
-  setMessages(prev => [...prev, newMessage]);
-  // Immediately hide history when new prompt is submitted - no delays or animations
-  setShowHistory(false);
-  setIsCollapsingHistory(false);
-  setIsInitialLoad(false);
-  
-    // Backend Integration Point: Use same logic as main submit for quick prompts
-    const promptType = determinePromptType(prompt);
-    const iframeTagMatch = prompt.match(/<iframe[^>]*src=["']([^"']+)["'][^>]*>/i);
-    const urlMatch = prompt.match(/https?:\/\/\S+/i);
-    const rawSrc = iframeTagMatch?.[1] || urlMatch?.[0];
-    const iframeSrc = rawSrc ? rawSrc.replace(/&amp;/g, '&') : undefined;
-    const isEmbedUrl = !!(rawSrc && /docs.google.com\/spreadsheets|pubhtml/i.test(rawSrc));
-
-    if (promptType || iframeTagMatch || isEmbedUrl) {
-      // Show reasoning display first for analytical prompts
-      setTimeout(() => {
-        const reasoningMessage: ChatMessage = {
-          id: (Date.now() + Math.random()).toString(),
-          content: prompt,
-          role: 'assistant',
-          timestamp: new Date(),
-          type: 'reasoning',
-          promptType: promptType || 'forecast',
-        };
-        setMessages(prev => [...prev, reasoningMessage]);
-        // Don't auto-scroll for assistant reasoning messages
-      }, 300);
-      // Note: The final response will be added by handleReasoningComplete when reasoning finishes
-    } else {
-      // Default simple bot response for non-analytical queries
-      setTimeout(() => {
-        const botResponse: ChatMessage = {
-          id: (Date.now() + Math.random()).toString(),
-          content: "I understand you're looking for information. For more detailed analysis, try using specific keywords like 'show me best performers', 'create purchase order', or 'forecast sales'.",
-          role: 'assistant',
-          timestamp: new Date(),
-          type: 'text'
-        };
-        setMessages(prev => [...prev, botResponse]);
-        // Don't auto-scroll for assistant responses
-      }, 1000);
-    }
+    processQuery(prompt);
   };
 
   return (
@@ -920,16 +892,15 @@ Note: This order will be assigned PO number PO-2025-0847 once confirmed.`,
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 placeholder="Message..."
-                className="w-full pl-4 pr-14 py-4 text-base bg-transparent focus:outline-none focus:border-transparent focus:ring-0 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white"
+                className="w-full overflow-hidden pl-4 pr-16 py-3.5 text-base bg-transparent focus:outline-none focus:border-transparent focus:ring-0 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white"
               />
               <button
                 type="submit"
                 disabled={!inputValue.trim()}
-                className="absolute bottom-2 right-2 p-2 flex items-center group"
+                aria-label="Submit query"
+                className={submitButtonClass(Boolean(inputValue.trim()))}
               >
-                <div className="p-1.5 rounded-lg bg-primary text-white group-hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
-                  <Send className="h-4 w-4" />
-                </div>
+                <Send className="h-4 w-4" />
               </button>
             </form>
           </div>

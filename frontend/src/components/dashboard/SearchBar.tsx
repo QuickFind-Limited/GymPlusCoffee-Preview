@@ -37,6 +37,14 @@ const SearchBar: React.FC<SearchBarProps> = ({
     }
   }, [searchQuery]);
 
+  const submitButtonClass = (hasText: boolean) =>
+    [
+      'absolute bottom-4 right-3 flex h-9 w-9 items-center justify-center rounded-full border border-gray-200 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60',
+      hasText
+        ? 'bg-gray-700 text-white hover:bg-gray-800'
+        : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+    ].join(' ');
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     const trimmed = searchQuery.trim();
@@ -63,17 +71,18 @@ const SearchBar: React.FC<SearchBarProps> = ({
           onKeyDown={handleKeyDown}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          placeholder="Ask anything about NetSuite data, purchase orders, or forecasts..."
-          className={`w-full resize-none rounded-3xl border-2 px-6 py-4 pr-16 text-base leading-relaxed shadow-sm transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-white ${
+          placeholder="Ask anything about your NetSuite sales, purchase orders, inventory, etc..."
+          className={`w-full resize-none overflow-hidden rounded-3xl border-2 px-6 py-4 pr-16 text-base leading-relaxed shadow-sm transition-colors duration-300 focus:outline-none focus:ring-4 focus:ring-primary/30 dark:border-gray-700 dark:bg-gray-900 dark:text-white ${
             isFocused ? 'border-primary shadow-lg' : 'border-gray-200 dark:border-gray-700'
           }`}
         />
         <button
           type="submit"
-          className="absolute bottom-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-primary text-white transition-colors hover:bg-primary/90"
           aria-label="Submit query"
+          disabled={!searchQuery.trim()}
+          className={submitButtonClass(Boolean(searchQuery.trim()))}
         >
-          <ArrowRight className="h-5 w-5" />
+          <ArrowRight className="h-4 w-4" />
         </button>
       </div>
 
@@ -82,7 +91,7 @@ const SearchBar: React.FC<SearchBarProps> = ({
         onOpenChange={setIsAdvancedOpen}
         className="mt-2 text-sm text-gray-500 dark:text-gray-400"
       >
-        <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-primary hover:underline">
+        <CollapsibleTrigger className="flex items-center gap-2 text-sm font-medium text-white">
           Advanced options
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-3 space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700">

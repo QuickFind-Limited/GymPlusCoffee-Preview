@@ -30,14 +30,17 @@ export function ClarificationPreview({
   onAcceptDefaults,
 }: ClarificationPreviewProps) {
   const hasContent = loading || error || session;
-  const pendingCount = session?.pending.length ?? 0;
+  const pending = session?.pending ?? [];
+  const pendingCount = pending.length;
 
   const resolvedPairs = useMemo(() => {
     if (!session) return [] as Array<{ key: string; value: string; source: 'user' | 'default' }>;
-    return Object.entries(session.resolved_context).map(([key, value]) => ({
+    const resolvedContext = session.resolved_context ?? {};
+    const autoApplied = session.auto_applied ?? {};
+    return Object.entries(resolvedContext).map(([key, value]) => ({
       key,
       value,
-      source: key in session.auto_applied ? 'default' : 'user',
+      source: key in autoApplied ? 'default' : 'user',
     }));
   }, [session]);
 
@@ -107,7 +110,7 @@ export function ClarificationPreview({
               All clarifications satisfied.
             </div>
           ) : (
-            session.pending.map((suggestion) => {
+            pending.map((suggestion) => {
               const selectedValues = selections[suggestion.question_id] || [];
               const handleSelection = (value: string, checked: boolean) => {
                 if (suggestion.selector.kind === 'single_select') {

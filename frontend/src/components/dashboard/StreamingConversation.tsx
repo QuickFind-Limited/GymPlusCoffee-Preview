@@ -1,5 +1,7 @@
 import FilePreviewSheet from "@/components/FilePreviewSheet";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import ClarificationQuestionCard, { ClarificationQuestionCardProps } from "@/components/clarifications/ClarificationQuestionCard";
+import ClarificationResolvedContext, { ClarificationResolvedContextProps } from "@/components/clarifications/ClarificationResolvedContext";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StreamEvent, apiStreamingService } from "@/services/apiStreaming";
@@ -37,6 +39,8 @@ interface StreamingConversationProps {
   onStreamingStart?: () => void;
   onStreamingEnd?: (finalResponse?: string) => void;
   onStreamingError?: (error: Error) => void;
+  clarificationSummary?: ClarificationResolvedContextProps | null;
+  clarificationCard?: ClarificationQuestionCardProps | null;
 }
 
 // Function to detect and strip JSON blocks from content
@@ -142,6 +146,8 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
   onStreamingStart,
   onStreamingEnd,
   onStreamingError,
+  clarificationSummary = null,
+  clarificationCard = null,
 }) => {
   const [events, setEvents] = useState<StreamEvent[]>(propEvents);
   const [isStreaming, setIsStreaming] = useState(propIsStreaming);
@@ -443,6 +449,23 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                     </div>
                   )}
                 </div>
+
+                {message.role === "user" &&
+                  clarificationSummary &&
+                  lastUserMessageId &&
+                  message.id === lastUserMessageId && (
+                    <ClarificationResolvedContext
+                      {...clarificationSummary}
+                      className="mt-6"
+                    />
+                  )}
+
+                {message.role === "user" &&
+                  clarificationCard &&
+                  lastUserMessageId &&
+                  message.id === lastUserMessageId && (
+                    <ClarificationQuestionCard {...clarificationCard} />
+                  )}
 
                 {/* Show intermediate assistant messages - first one as top-level wrapper containing subtasks */}
                 {/* Show for all user messages that have events, not just the last one */}

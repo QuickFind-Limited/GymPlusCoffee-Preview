@@ -5,7 +5,6 @@ import SearchBar from '@/components/dashboard/SearchBar';
 import StreamingConversation from '@/components/dashboard/StreamingConversation';
 import PurchaseOrderGenerationTransition from '@/components/PurchaseOrderGenerationTransition';
 import PurchaseOrderPDFView from '@/components/PurchaseOrderPDFView';
-import { ClarificationPreview } from '@/components/clarifications/ClarificationPreview';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useConversation } from '@/contexts/ConversationContext';
 import { useFinancialData } from '@/contexts/FinancialDataContext';
@@ -19,10 +18,10 @@ import {
   respondClarifications,
   suggestClarifications,
 } from '@/services/clarificationService';
-import { ClarificationSessionState } from '@/types/clarifications';
+import { ClarificationSessionState, ClarificationSuggestion } from '@/types/clarifications';
 import { extractMessageFromParams } from '@/utils/navigationUtils';
 import { Bell, Check, ClipboardList, FileText } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useUser } from '@/contexts/UserContext';
@@ -38,6 +37,174 @@ CRITICAL REQUIREMENTS FOR ALL RESPONSES:
 2. ALWAYS use September 18, 2025 as today's date for any date calculations
 3. PO numbers follow the format PO-2025-XXXX
 `;
+
+interface ClarificationAnswerPayload {
+  questionId: string;
+  questionText: string;
+  source: 'default' | 'user';
+  values: string[];
+}
+
+type RawClarificationState = ClarificationSessionState & {
+  suggestions?: ClarificationSuggestion[];
+  evaluated_at?: string;
+};
+
+const normalizeClarificationState = (
+  state: RawClarificationState
+): ClarificationSessionState => {
+  const rawPending = Array.isArray(state.pending)
+    ? state.pending
+    : Array.isArray(state.suggestions)
+      ? state.suggestions
+      : [];
+
+  const pending = rawPending.filter(Boolean);
+  const autoApplied = state.auto_applied ?? {};
+  const resolvedContext = state.resolved_context ?? {};
+  const answers = state.answers ?? {};
+  const matchedIds = state.matched_question_ids ?? [];
+  const status = state.status ?? (pending.length > 0 ? 'pending' : 'ready');
+  const sessionId = state.session_id ?? state.evaluated_at ?? `local-${Date.now()}`;
+
+  const { suggestions, ...rest } = state;
+
+  return {
+    ...rest,
+    session_id: sessionId,
+    status,
+    pending,
+    auto_applied: autoApplied,
+    resolved_context: resolvedContext,
+    answers,
+    matched_question_ids: matchedIds,
+  };
+};
+
+const formatList = (values: string[]): string => {
+  if (values.length === 0) return '';
+  if (values.length === 1) return values[0];
+  const head = values.slice(0, -1).join(', ');
+  const tail = values[values.length - 1];
+  return `${head} and ${tail}`;
+};
+
+const buildClarificationAnswers = (
+  state: ClarificationSessionState,
+  questionTextMap: Record<string, string>
+): ClarificationAnswerPayload[] => {
+  const resolvedContext = state.resolved_context ?? {};
+  const autoApplied = state.auto_applied ?? {};
+  const answers = new Map<string, ClarificationAnswerPayload>();
+
+  const registerEntry = (
+    questionId: string,
+    rawValue: string,
+    source: 'default' | 'user'
+  ) => {
+    const trimmedRaw = rawValue.trim();
+    if (!trimmedRaw) {
+      return;
+    }
+
+    const questionText =
+      questionTextMap[questionId] ||
+      (state.pending ?? []).find((item) => item.question_id === questionId)?.clarification_question ||
+      questionId;
+
+    const values = trimmedRaw
+      .split(',')
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+
+    answers.set(questionId, {
+      questionId,
+      questionText,
+      source,
+      values: values.length > 0 ? values : [trimmedRaw],
+    });
+  };
+
+  Object.entries(autoApplied).forEach(([questionId, rawValue]) => {
+    registerEntry(questionId, rawValue, 'default');
+  });
+
+  Object.entries(resolvedContext).forEach(([questionId, rawValue]) => {
+    registerEntry(questionId, rawValue, 'user');
+  });
+
+  return Array.from(answers.values());
+};
+
+const rewriteQueryWithClarifications = (
+  query: string,
+  answers: ClarificationAnswerPayload[]
+): string => {
+  if (!answers.length) {
+    return query;
+  }
+
+  const departmentsEntry = answers.find((answer) =>
+    answer.questionText.toLowerCase().includes('department')
+  );
+  const locationsEntry = answers.find((answer) => {
+    const text = answer.questionText.toLowerCase();
+    return text.includes('location') || text.includes('store');
+  });
+
+  const departments = departmentsEntry ? departmentsEntry.values : [];
+  const locations = locationsEntry ? locationsEntry.values : [];
+
+  let rewritten = query;
+
+  if (locations.length > 0) {
+    const locationList = formatList(locations);
+    rewritten = rewritten.replace(
+      /in each retail store/gi,
+      `in ${locationList} retail store${locations.length > 1 ? 's' : ''}`
+    );
+  }
+
+  if (departments.length > 0) {
+    const departmentList = formatList(departments);
+    if (/all departments/gi.test(rewritten)) {
+      rewritten = rewritten.replace(/all departments/gi, departmentList);
+    } else {
+      rewritten = rewritten.replace(
+        /(retail store(?:s)?)/gi,
+        `$1 across the departments ${departmentList}`
+      );
+    }
+  }
+
+  return rewritten;
+};
+
+const composePromptWithContext = (
+  query: string,
+  answers: ClarificationAnswerPayload[]
+): string => {
+  if (answers.length === 0) {
+    return query;
+  }
+
+  const clarificationJson = JSON.stringify(
+    answers.map((answer) => ({
+      question_id: answer.questionId,
+      question_text: answer.questionText,
+      source: answer.source,
+      values: answer.values,
+    })),
+    null,
+    2
+  );
+
+  return `${query}
+
+Only use the values provided inside clarification_answers. If you cannot honour them, ask the user for more information before proceeding.
+
+clarification_answers = ${clarificationJson}`;
+};
 
 const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -58,8 +225,10 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   const [clarificationState, setClarificationState] = useState<ClarificationSessionState | null>(null);
   const [clarificationSessionId, setClarificationSessionId] = useState<string | null>(null);
   const [clarificationSelections, setClarificationSelections] = useState<Record<string, string[]>>({});
+  const [clarificationQueue, setClarificationQueue] = useState<ClarificationSuggestion[]>([]);
   const [clarificationLoading, setClarificationLoading] = useState(false);
   const [clarificationError, setClarificationError] = useState<string | null>(null);
+  const [clarificationQuestionText, setClarificationQuestionText] = useState<Record<string, string>>({});
 
   const conversation = useConversation();
   const { toast } = useToast();
@@ -69,16 +238,6 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   const { monthlySpendData } = useFinancialData();
   const { user } = useUser();
   const { signOut } = useAuth();
-
-  const hasClarificationOutput = useMemo(() => {
-    if (clarificationLoading || clarificationError) return true;
-    if (!clarificationState) return false;
-    return (
-      clarificationState.pending.length > 0 ||
-      Object.keys(clarificationState.auto_applied).length > 0 ||
-      Object.keys(clarificationState.resolved_context).length > 0
-    );
-  }, [clarificationLoading, clarificationError, clarificationState]);
 
   const handleLogout = async () => {
     try {
@@ -101,31 +260,23 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
     setClarificationState(null);
     setClarificationSessionId(null);
     setClarificationSelections({});
+    setClarificationQueue([]);
     setClarificationError(null);
     setClarificationLoading(false);
-  };
-
-  const composePromptWithContext = (
-    query: string,
-    state: ClarificationSessionState
-  ): string => {
-    const entries = Object.entries(state.resolved_context);
-    if (!entries.length) return query;
-
-    const defaultKeys = new Set(Object.keys(state.auto_applied));
-    const contextLines = entries.map(([key, value]) => {
-      const source = defaultKeys.has(key) ? 'default' : 'user';
-      return `- ${key}: ${value} (${source})`;
-    });
-
-    return `${query}\n\nClarification context:\n${contextLines.join('\n')}`;
+    setClarificationQuestionText({});
   };
 
   const startStreaming = async (
     query: string,
     state: ClarificationSessionState
   ) => {
-    const finalPrompt = composePromptWithContext(query, state);
+    const pendingMap = Object.fromEntries(
+      (state.pending ?? []).map((item) => [item.question_id, item.clarification_question])
+    );
+    const questionTextMap = { ...clarificationQuestionText, ...pendingMap };
+    const clarificationAnswers = buildClarificationAnswers(state, questionTextMap);
+    const rewrittenQuery = rewriteQueryWithClarifications(query, clarificationAnswers);
+    const finalPrompt = composePromptWithContext(rewrittenQuery, clarificationAnswers);
 
     conversation.setIsStreaming(true);
     setShowStreamingConversation(true);
@@ -140,6 +291,12 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
     };
 
     try {
+      console.log('🚀 Streaming start', {
+        originalQuery: query,
+        rewrittenQuery,
+        clarificationAnswers,
+      });
+      console.log('🧾 Streaming options', options);
       await apiStreamingService.streamQuery(
         options,
         (event: StreamEvent) => {
@@ -187,12 +344,24 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
     setClarificationLoading(true);
 
     try {
-      const sessionState = await suggestClarifications({ user_query: query });
-      setClarificationSessionId(sessionState.session_id);
+      const rawState = await suggestClarifications({ user_query: query });
+      console.log('🔍 Clarification suggest response:', rawState);
+      const sessionState = normalizeClarificationState(rawState);
+      const nextSessionId = sessionState.session_id ?? `local-${Date.now()}`;
+      setClarificationSessionId(nextSessionId);
       setClarificationState(sessionState);
+      const pendingQuestions = sessionState.pending ?? [];
+      setClarificationQueue(pendingQuestions);
+      setClarificationQuestionText((prev) => ({
+        ...prev,
+        ...Object.fromEntries(
+          pendingQuestions.map((item) => [item.question_id, item.clarification_question])
+        ),
+      }));
 
       setClarificationSelections((prev) => {
-        const pendingIds = new Set(sessionState.pending.map((item) => item.question_id));
+        const pendingQuestions = sessionState.pending ?? [];
+        const pendingIds = new Set(pendingQuestions.map((item) => item.question_id));
         const next: Record<string, string[]> = {};
         Object.entries(prev).forEach(([qid, values]) => {
           if (pendingIds.has(qid)) {
@@ -222,31 +391,93 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
 
     setActiveQuery(trimmed);
     setSearchQuery('');
-    setShowChatInterface(true);
-    setShowStreamingConversation(false);
+    setShowChatInterface(false);
+    setShowStreamingConversation(true);
     setShowOrderGeneration(false);
 
     conversation.addUserMessage(trimmed);
-    conversation.setIsStreaming(false);
+    conversation.setIsStreaming(true);
 
     resetClarificationUI();
-    await evaluateClarifications(trimmed);
+
+    setTimeout(() => {
+      conversation.setIsStreaming(false);
+      void evaluateClarifications(trimmed);
+    }, 3000);
   };
 
   const handleSelectionChange = (questionId: string, values: string[]) => {
     setClarificationSelections((prev) => ({ ...prev, [questionId]: values }));
   };
 
-  const handleClarificationSubmit = async () => {
-    if (!clarificationState || !clarificationSessionId) return;
-    const unanswered = clarificationState.pending.filter(
-      (item) => !clarificationSelections[item.question_id] || clarificationSelections[item.question_id].length === 0
-    );
+  const activeClarification = clarificationQueue.length > 0 ? clarificationQueue[0] : null;
 
-    if (unanswered.length > 0) {
+  const advanceLocalClarification = async (selectedValues: string[]) => {
+    if (!clarificationState || !activeClarification) return;
+
+    const nextQueue = clarificationQueue.slice(1);
+    const resolvedValue = selectedValues.length
+      ? selectedValues.join(', ')
+      : 'defaults accepted';
+
+    const updatedState: ClarificationSessionState = {
+      ...clarificationState,
+      pending: nextQueue,
+      resolved_context: {
+        ...(clarificationState.resolved_context ?? {}),
+        [activeClarification.question_id]: resolvedValue,
+      },
+      answers: {
+        ...(clarificationState.answers ?? {}),
+        [activeClarification.question_id]: selectedValues,
+      },
+      status: nextQueue.length > 0 ? 'pending' : 'ready',
+    };
+
+    setClarificationQuestionText((prev) => ({
+      ...prev,
+      [activeClarification.question_id]: activeClarification.clarification_question,
+    }));
+    setClarificationState(updatedState);
+    setClarificationQueue(nextQueue);
+    setClarificationSelections((prev) => {
+      const { [activeClarification.question_id]: _, ...rest } = prev;
+      return rest;
+    });
+    setClarificationSessionId((prev) => prev ?? `local-${Date.now()}`);
+    setClarificationError(null);
+
+    if (nextQueue.length === 0) {
+      await startStreaming(activeQuery, updatedState);
+    }
+  };
+
+  const handleClarificationSubmit = async () => {
+    if (!clarificationState) {
+      return;
+    }
+
+    if (!activeClarification) {
+      if (clarificationState.status === 'ready') {
+        await startStreaming(activeQuery, clarificationState);
+      }
+      return;
+    }
+
+    let ensuredSessionId = clarificationSessionId;
+    if (!ensuredSessionId) {
+      ensuredSessionId = `local-${Date.now()}`;
+      setClarificationSessionId(ensuredSessionId);
+    }
+    const isLocalSession = ensuredSessionId.startsWith('local-');
+
+    const selected = clarificationSelections[activeClarification.question_id] || [];
+    const requiresInteraction = activeClarification.selector.kind !== 'none';
+
+    if (requiresInteraction && selected.length === 0) {
       toast({
         title: 'More details needed',
-        description: `Please complete: ${unanswered.map((item) => item.clarification_question).join(', ')}`,
+        description: 'Please choose at least one option to continue.',
         variant: 'destructive',
       });
       return;
@@ -255,36 +486,72 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
     setClarificationLoading(true);
 
     try {
-      const answers = clarificationState.pending.map((item) => ({
-        question_id: item.question_id,
-        selected_values: clarificationSelections[item.question_id] || [],
-      }));
+      if (isLocalSession) {
+        await advanceLocalClarification(requiresInteraction ? selected : []);
+        return;
+      }
 
-      const sessionState = await respondClarifications({
-        session_id: clarificationSessionId,
+      const answers = [
+        {
+          question_id: activeClarification.question_id,
+          selected_values: requiresInteraction ? selected : [],
+        },
+      ];
+
+      const rawState = await respondClarifications({
+        session_id: ensuredSessionId,
         answers,
       });
+      console.log('📝 Clarification respond response:', rawState);
+      const sessionState = normalizeClarificationState(rawState);
+      const answeredIds = new Set(Object.keys(sessionState.answers ?? {}));
+      const nextSessionId = sessionState.session_id ?? ensuredSessionId;
 
-      setClarificationState(sessionState);
-      setClarificationSessionId(sessionState.session_id);
+      const pendingFromServer = sessionState.pending ?? [];
+      const pending = pendingFromServer.filter(
+        (item) => !answeredIds.has(item.question_id)
+      );
+      const sanitizedState: ClarificationSessionState = {
+        ...sessionState,
+        pending,
+        status: pending.length === 0 ? 'ready' : sessionState.status,
+      };
+
+      setClarificationState(sanitizedState);
+      setClarificationSessionId(nextSessionId);
+      setClarificationQueue(pending);
+      setClarificationQuestionText((prev) => ({
+        ...prev,
+        ...Object.fromEntries(
+          pending.map((item) => [item.question_id, item.clarification_question])
+        ),
+      }));
       setClarificationSelections((prev) => {
+        const remaining = { ...prev };
+        answeredIds.forEach((id) => {
+          delete remaining[id];
+        });
         const next: Record<string, string[]> = {};
-        sessionState.pending.forEach((item) => {
-          if (prev[item.question_id]) {
-            next[item.question_id] = prev[item.question_id];
+        pending.forEach((item) => {
+          if (remaining[item.question_id]) {
+            next[item.question_id] = remaining[item.question_id];
           }
         });
         return next;
       });
 
-      if (sessionState.status === 'ready') {
-        await startStreaming(activeQuery, sessionState);
+      if (pending.length === 0 || sanitizedState.status === 'ready') {
+        await startStreaming(activeQuery, sanitizedState);
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('404')) {
+        console.warn('Clarification respond endpoint missing, falling back to local flow');
+        await advanceLocalClarification(requiresInteraction ? selected : []);
+        return;
+      }
       setClarificationError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to submit clarification answers'
+        error instanceof Error ? error.message : 'Failed to submit clarification answers'
       );
     } finally {
       setClarificationLoading(false);
@@ -292,18 +559,73 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   };
 
   const handleAcceptDefaults = async () => {
-    if (!clarificationSessionId) return;
+    if (!clarificationState || !activeClarification) return;
+
+    const defaults = Object.values(activeClarification.defaults_applied ?? {});
+    let ensuredSessionId = clarificationSessionId;
+    if (!ensuredSessionId) {
+      ensuredSessionId = `local-${Date.now()}`;
+      setClarificationSessionId(ensuredSessionId);
+    }
+    const isLocalSession = ensuredSessionId.startsWith('local-');
+
     setClarificationLoading(true);
+
     try {
-      const sessionState = await respondClarifications({
-        session_id: clarificationSessionId,
+      if (isLocalSession) {
+        await advanceLocalClarification(defaults);
+        return;
+      }
+
+      const rawState = await respondClarifications({
+        session_id: ensuredSessionId,
         accept_defaults: true,
       });
-      setClarificationState(sessionState);
-      if (sessionState.status === 'ready') {
-        await startStreaming(activeQuery, sessionState);
+      console.log('✅ Clarification accept-defaults response:', rawState);
+      const sessionState = normalizeClarificationState(rawState);
+      const answeredIds = new Set(Object.keys(sessionState.answers ?? {}));
+      const nextSessionId = sessionState.session_id ?? ensuredSessionId;
+      const pendingFromServer = sessionState.pending ?? [];
+      const pending = pendingFromServer.filter(
+        (item) => !answeredIds.has(item.question_id)
+      );
+      const sanitizedState: ClarificationSessionState = {
+        ...sessionState,
+        pending,
+        status: pending.length === 0 ? 'ready' : sessionState.status,
+      };
+      setClarificationState(sanitizedState);
+      setClarificationSessionId(nextSessionId);
+      setClarificationQueue(pending);
+      setClarificationQuestionText((prev) => ({
+        ...prev,
+        ...Object.fromEntries(
+          pending.map((item) => [item.question_id, item.clarification_question])
+        ),
+      }));
+      setClarificationSelections((prev) => {
+        const remaining = { ...prev };
+        answeredIds.forEach((id) => {
+          delete remaining[id];
+        });
+        const next: Record<string, string[]> = {};
+        pending.forEach((item) => {
+          if (remaining[item.question_id]) {
+            next[item.question_id] = remaining[item.question_id];
+          }
+        });
+        return next;
+      });
+      if (pending.length === 0 || sanitizedState.status === 'ready') {
+        await startStreaming(activeQuery, sanitizedState);
       }
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('404')) {
+        console.warn('Clarification accept-defaults endpoint missing, falling back to local flow');
+        await advanceLocalClarification(defaults);
+        return;
+      }
       setClarificationError(
         error instanceof Error
           ? error.message
@@ -313,6 +635,41 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
       setClarificationLoading(false);
     }
   };
+
+  const clarificationSummary = clarificationState &&
+    Object.keys(clarificationState.resolved_context ?? {}).length > 0
+      ? {
+          resolvedContext: clarificationState.resolved_context ?? {},
+          autoApplied: clarificationState.auto_applied ?? {},
+        }
+      : null;
+
+  const clarificationCard = activeClarification && clarificationState
+    ? {
+        suggestion: activeClarification,
+        selectedValues:
+          clarificationSelections[activeClarification.question_id] || [],
+        onChange: (values: string[]) =>
+          handleSelectionChange(activeClarification.question_id, values),
+        onSubmit: handleClarificationSubmit,
+        onAcceptDefaults:
+          clarificationSessionId &&
+          (Object.keys(clarificationState.auto_applied ?? {}).length > 0 ||
+            Object.keys(activeClarification.defaults_applied ?? {}).length > 0)
+            ? handleAcceptDefaults
+            : undefined,
+        showAcceptDefaults:
+          (Object.keys(clarificationState.auto_applied ?? {}).length > 0 ||
+            Object.keys(activeClarification.defaults_applied ?? {}).length > 0) &&
+          Boolean(clarificationSessionId),
+        showResolvedContext: false,
+        autoApplied: clarificationState.auto_applied ?? {},
+        defaultsApplied: activeClarification.defaults_applied ?? {},
+        resolvedContext: clarificationState.resolved_context ?? {},
+        loading: clarificationLoading,
+        disableInputs: clarificationLoading,
+      }
+    : null;
 
   const handleOrderGeneration = (query: string) => {
     if (query.toLowerCase().includes('replenishment')) {
@@ -395,6 +752,8 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
       onClick: () => {},
     },
   ];
+  const showSummaryPanels = false;
+
 
   return (
     <SidebarProvider>
@@ -404,18 +763,11 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
           <Header />
 
           <main className="flex-1 flex flex-col px-4 py-4">
-            {hasClarificationOutput && (
-              <ClarificationPreview
-                session={clarificationState}
-                loading={clarificationLoading}
-                error={clarificationError}
-                selections={clarificationSelections}
-                onChange={handleSelectionChange}
-                onSubmit={handleClarificationSubmit}
-                onAcceptDefaults={handleAcceptDefaults}
-              />
+            {clarificationError && (
+              <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
+                {clarificationError}
+              </div>
             )}
-
             {isGeneratingPO ? (
               <div className="flex items-center justify-center min-h-[80vh]">
                 <PurchaseOrderGenerationTransition
@@ -446,12 +798,15 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
                   events={conversation.streamingEvents}
                   isStreaming={conversation.isStreaming}
                   conversationMessages={conversation.messages}
+                  clarificationSummary={clarificationSummary}
+                  clarificationCard={clarificationCard}
                 />
               </div>
             ) : showChatInterface ? (
               <ChatInterface
                 initialQuery={activeQuery}
                 onSubmit={handleChatSubmit}
+                disableLocalAssistantResponses
               />
             ) : (
               <div
@@ -504,6 +859,7 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
               </div>
             )}
 
+            {showSummaryPanels && (
             <section className="mt-10">
               <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
                 Executive Summary
@@ -529,7 +885,9 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
                 ))}
               </div>
             </section>
+            )}
 
+            {showSummaryPanels && (
             <section className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
               <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
                 <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
@@ -548,6 +906,7 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
                 </p>
               </div>
             </section>
+            )}
           </main>
         </SidebarInset>
       </div>
