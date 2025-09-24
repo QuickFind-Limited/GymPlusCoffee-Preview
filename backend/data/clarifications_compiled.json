@@ -53510,7 +53510,7 @@
       }
     }
   },
-  "source_csv": "/home/produser/netsuite_query_comparison-2.csv",
-  "source_json": "/home/produser/netsuite_query_results.json",
-  "generated_at": "2025-09-24T00:04:45.796846+00:00"
+  "source_csv": "/home/produser/GymPlusCoffee-Preview/backend/data/netsuite_query_comparison-2.csv",
+  "source_json": "/home/produser/GymPlusCoffee-Preview/backend/data/netsuite_query_results.json",
+  "generated_at": "2025-09-24T07:31:16.472269+00:00"
 }

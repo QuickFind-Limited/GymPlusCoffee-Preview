@@ -22,18 +22,27 @@ export interface ClarificationSuggestion {
   reason: string;
 }
 
-export interface ClarificationResponse {
-  user_query: string;
-  suggestions: ClarificationSuggestion[];
+export interface ClarificationSessionState {
+  session_id: string;
+  original_query: string;
   auto_applied: Record<string, string>;
-  evaluated_at: string;
+  answers: Record<string, string[]>;
+  pending: ClarificationSuggestion[];
   matched_question_ids: string[];
+  resolved_context: Record<string, string>;
+  status: 'pending' | 'ready';
+  updated_at: string;
 }
 
-export interface ClarificationRequest {
-  user_query: string;
-  module_hint?: string | null;
-  already_provided?: Record<string, string>;
+export interface ClarificationAnswerPayload {
+  question_id: string;
+  selected_values: string[];
+}
+
+export interface ClarificationAnswerRequest {
+  session_id: string;
+  answers?: ClarificationAnswerPayload[];
+  accept_defaults?: boolean;
 }
 
 export interface SystemWideQueryDefinition {

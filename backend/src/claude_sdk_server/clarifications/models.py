@@ -68,6 +68,7 @@ class ClarificationRequest(BaseModel):
     user_query: str
     module_hint: Optional[str] = None
     already_provided: Dict[str, Any] = Field(default_factory=dict)
+    session_id: Optional[str] = None
 
 
 class ClarificationSuggestion(BaseModel):
@@ -86,3 +87,27 @@ class ClarificationResponse(BaseModel):
     auto_applied: Dict[str, Any] = Field(default_factory=dict)
     evaluated_at: str
     matched_question_ids: List[str] = Field(default_factory=list)
+    session_id: Optional[str] = None
+
+
+class ClarificationAnswer(BaseModel):
+    question_id: str
+    selected_values: List[str] = Field(default_factory=list)
+
+
+class ClarificationAnswerRequest(BaseModel):
+    session_id: str
+    answers: List[ClarificationAnswer] = Field(default_factory=list)
+    accept_defaults: bool = False
+
+
+class ClarificationSessionState(BaseModel):
+    session_id: str
+    original_query: str
+    auto_applied: Dict[str, Any]
+    answers: Dict[str, Any]
+    pending: List[ClarificationSuggestion]
+    matched_question_ids: List[str] = Field(default_factory=list)
+    resolved_context: Dict[str, Any]
+    status: Literal["pending", "ready"]
+    updated_at: str

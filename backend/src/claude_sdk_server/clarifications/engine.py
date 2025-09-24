@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import difflib
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Dict, List, Tuple
 
@@ -24,6 +25,7 @@ class ClarificationEngine:
         self.dataset: ClarificationDataset = load_clarification_dataset()
         self.system_defaults = load_system_default_results()
         self._token_cache: Dict[str, List[str]] = {}
+        self._embedding_index: Dict[str, Counter[str]] = self._build_embedding_index()
 
     # ---------------------------------------------------------------------
     # Data refresh helpers
@@ -32,6 +34,7 @@ class ClarificationEngine:
         self.dataset = load_clarification_dataset()
         self.system_defaults = load_system_default_results()
         self._token_cache.clear()
+        self._embedding_index = self._build_embedding_index()
 
     # ---------------------------------------------------------------------
     # Public API
@@ -124,6 +127,9 @@ class ClarificationEngine:
             option_hits = self._option_hits(record, request.user_query)
             score += option_hits
 
+            embedding_similarity = self._embedding_similarity(query_tokens, record.question_id)
+            score += int(embedding_similarity * 10)
+
             if score >= 5:
                 scored.append((score, record))
 
@@ -144,6 +150,23 @@ class ClarificationEngine:
             if option.display_value.lower() in lowered or option.value.lower() in lowered:
                 hits += 3
         return hits
+
+    def _build_embedding_index(self) -> Dict[str, Counter[str]]:
+        index: Dict[str, Counter[str]] = {}
+        for qid, record in self.dataset.clarifications.items():
+            index[qid] = Counter(self._tokens_for(record.user_question))
+        return index
+
+    def _embedding_similarity(self, query_tokens: List[str], question_id: str) -> float:
+        if not query_tokens:
+            return 0.0
+        query_counter = Counter(query_tokens)
+        target = self._embedding_index.get(question_id)
+        if not target:
+            return 0.0
+        intersection = sum((query_counter & target).values())
+        union = sum((query_counter | target).values()) or 1
+        return intersection / union
 
     def _build_reason(self, record: ClarificationRecord, defaults: Dict[str, str]) -> str:
         if defaults:
@@ -235,3 +258,4 @@ def re_split(text: str) -> List[str]:
     import re
 
     return [token for token in re.split(r"[^a-z0-9]+", text) if token]
+
