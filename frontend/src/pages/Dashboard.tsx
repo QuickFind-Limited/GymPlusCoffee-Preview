@@ -8,6 +8,7 @@ import PurchaseOrderPDFView from '@/components/PurchaseOrderPDFView';
 import { ClarificationPreview } from '@/components/clarifications/ClarificationPreview';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useConversation } from '@/contexts/ConversationContext';
+import { useFinancialData } from '@/contexts/FinancialDataContext';
 import { useToast } from '@/hooks/use-toast';
 import {
   apiStreamingService,
@@ -20,6 +21,7 @@ import {
 } from '@/services/clarificationService';
 import { ClarificationSessionState } from '@/types/clarifications';
 import { extractMessageFromParams } from '@/utils/navigationUtils';
+import { Bell, Check, ClipboardList, FileText } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -64,6 +66,7 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { monthlySpendData } = useFinancialData();
   const { user } = useUser();
   const { signOut } = useAuth();
 
@@ -356,6 +359,45 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   }, [user]);
 
 
+  const showExecutiveSummary = false;
+
+  const totalSpend = monthlySpendData.reduce((sum, item) => sum + item.spend, 0);
+
+  const kpiData = [
+    {
+      title: 'Open Orders',
+      value: '27',
+      icon: ClipboardList,
+      borderColor: 'bg-green-500',
+      bgColor: 'bg-gray-100',
+      onClick: () => {},
+    },
+    {
+      title: 'New Quotes Received',
+      value: '2',
+      icon: FileText,
+      borderColor: 'bg-blue-500',
+      bgColor: 'bg-gray-100',
+      onClick: () => {},
+    },
+    {
+      title: 'Pending Approvals',
+      value: '3',
+      icon: Check,
+      borderColor: 'bg-orange-500',
+      bgColor: 'bg-gray-100',
+      onClick: () => {},
+    },
+    {
+      title: 'Notifications',
+      value: '5',
+      icon: Bell,
+      borderColor: 'bg-purple-500',
+      bgColor: 'bg-gray-100',
+      onClick: () => {},
+    },
+  ];
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gray-100 dark:bg-black">
@@ -464,6 +506,54 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
               </div>
             )}
 
+            {showExecutiveSummary && (
+              <>
+              <section className="mt-10">
+              <h2 className="text-lg font-semibold text-gray-800 dark:text-white">
+                Executive Summary
+              </h2>
+              <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-4">
+                {kpiData.map((kpi) => (
+                  <div
+                    key={kpi.title}
+                    className={`rounded-xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md dark:border-gray-800 dark:bg-gray-900 ${kpi.bgColor}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          {kpi.title}
+                        </p>
+                        <h3 className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">
+                          {kpi.value}
+                        </h3>
+                      </div>
+                      <kpi.icon className={`h-10 w-10 rounded-full p-2 text-white ${kpi.borderColor}`} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+              <section className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                  Monthly Spend Overview
+               </h3>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  Total spend this year: €{totalSpend.toLocaleString()}
+                </p>
+              </div>
+              <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+                <h3 className="text-lg font-semibold text-gray-800 dark:text-white">
+                  NetSuite Activity Feed
+                </h3>
+                <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                  Streaming conversation context appears here once clarifications are satisfied.
+                </p>
+              </div>
+              </section>
+              </>
+            )}
           </main>
         </SidebarInset>
       </div>
