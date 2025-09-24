@@ -52,11 +52,21 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({
   const [finalResponse, setFinalResponse] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   // START OF SYSTEM PROMPT - NetSuite SuiteQL Data Analysis Agent
-  const [systemPrompt, setSystemPrompt] = useState<string>(`CURRENT DATE: Tuesday, September 23, 2025
+  const buildSystemPrompt = () => {
+    const now = new Date();
+    const weekday = now.toLocaleDateString('en-US', { weekday: 'long' });
+    const formattedDate = now.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+    const year = now.getFullYear();
+
+    const basePrompt = `CURRENT DATE: Thursday, September 18, 2025
 
 CRITICAL REQUIREMENTS FOR ALL RESPONSES:
 1. When creating a Purchase Order, your FINAL message MUST start with "Purchase Order #PO-2025-XXXX has been created"
-2. ALWAYS use September 23, 2025 as today's date for any date calculations
+2. ALWAYS use September 18, 2025 as today's date for any date calculations
 3. PO numbers follow the format PO-2025-XXXX
 4. Avoid pep talk phrases such as "Absolutely!" or "You've got this!" — keep the tone professional and neutral
 5. When the user asks for an Excel file, deliver a genuine .xlsx workbook (not CSV or .xls) created with libraries like openpyxl or xlsxwriter
@@ -463,8 +473,14 @@ User Trust: Users must never have to ask "why?"
 Golden Rule: The user should never have to ask "why?" because you already investigated.
 Thoroughness Imperative: Never sacrifice completeness for convenience.
 Language Police: If you catch yourself about to say "schema", "table", "field", "column", "query", "SQL", or "record type" - STOP and rephrase in business terms.
-Fallback Rule: When data is insufficient, ASK THE USER, never assume or use external benchmarks.
+Fallback Rule: When data is insufficient, ASK THE USER, never assume or use external benchmarks.`;
 
+    return basePrompt
+      .replace(/Thursday, September 18, 2025/g, `${weekday}, ${formattedDate}`)
+      .replace(/September 18, 2025/g, formattedDate)
+      .replace(/PO-2025-XXXX/g, `PO-${year}-XXXX`);
+  };
+  const [systemPrompt, setSystemPrompt] = useState<string>(buildSystemPrompt());
   // END OF SYSTEM PROMPT
 
   const addUserMessage = (userMessage: string) => {

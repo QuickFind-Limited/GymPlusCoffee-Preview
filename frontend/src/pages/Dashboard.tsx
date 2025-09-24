@@ -15,6 +15,9 @@ import {
   StreamEvent,
   StreamEventData,
 } from "@/services/apiStreaming";
+import { suggestClarifications } from "@/services/clarificationService";
+import { ClarificationResponse } from "@/types/clarifications";
+import { ClarificationPreview } from "@/components/clarifications/ClarificationPreview";
 import { extractMessageFromParams } from "@/utils/navigationUtils";
 import { Bell, Check, ClipboardList, FileText } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -31,6 +34,23 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   const [showStreamingConversation, setShowStreamingConversation] =
     useState(false);
   const [showOrderGeneration, setShowOrderGeneration] = useState(false);
+  const [clarificationResponse, setClarificationResponse] =
+    useState<ClarificationResponse | null>(null);
+  const [isLoadingClarifications, setIsLoadingClarifications] =
+    useState(false);
+  const [clarificationError, setClarificationError] = useState<string | null>(
+    null
+  );
+  const [activeQuery, setActiveQuery] = useState<string>("");
+
+  const hasClarificationOutput =
+    isLoadingClarifications ||
+    Boolean(clarificationError) ||
+    Boolean(
+      clarificationResponse &&
+        (clarificationResponse.suggestions.length > 0 ||
+          Object.keys(clarificationResponse.auto_applied || {}).length > 0)
+    );
 
   // Utiliser le store de conversation
   const conversation = useConversation();
@@ -50,6 +70,18 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   const { toast } = useToast();
   const { monthlySpendData } = useFinancialData();
   const { user } = useUser();
+
+  // Effet pour détecter une conversation active et afficher StreamingConversation
+  useEffect(() => {
+    if (
+      conversation.messages.length > 0 ||
+      conversation.streamingEvents.length > 0
+    ) {
+      setShowStreamingConversation(true);
+      setShowChatInterface(false);
+      setShowOrderGeneration(false);
+    }
+  }, [conversation.messages, conversation.streamingEvents]);
 
   // Handle initial message from URL parameters - RUN IMMEDIATELY
   useEffect(() => {
@@ -122,17 +154,6 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
     }
   }, [user, searchParams, setSearchParams, toast]);
 
-  // Effet pour détecter une conversation active et afficher StreamingConversation
-  useEffect(() => {
-    if (
-      conversation.messages.length > 0 ||
-      conversation.streamingEvents.length > 0
-    ) {
-      setShowStreamingConversation(true);
-      setShowChatInterface(false);
-      setShowOrderGeneration(false);
-    }
-  }, [conversation.messages, conversation.streamingEvents]);
   const { signOut } = useAuth();
   const handleLogout = async () => {
     try {
@@ -150,13 +171,44 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   const handlePOGenerationComplete = () => {
     setIsGeneratingPO(false);
   };
-  const handleChatSubmit = (query: string) => {
+  const evaluateClarifications = async (query: string) => {
+    if (!query.trim()) {
+      setClarificationResponse(null);
+      setClarificationError(null);
+      return;
+    }
+
+    setActiveQuery(query);
+    setClarificationError(null);
+    setClarificationResponse(null);
+    setIsLoadingClarifications(true);
+
+    try {
+      const response = await suggestClarifications({
+        user_query: query,
+        already_provided: {},
+      });
+      setClarificationResponse(response);
+    } catch (error) {
+      setClarificationError(
+        error instanceof Error
+          ? error.message
+          : "Failed to evaluate clarification questions"
+      );
+    } finally {
+      setIsLoadingClarifications(false);
+    }
+  };
+
+  const handleChatSubmit = async (query: string) => {
     console.log("🎯 handleChatSubmit called with query:", query);
-    // Show ChatInterface to display the user's message first
     setSearchQuery(query);
+    setActiveQuery(query);
     setShowChatInterface(true);
     setShowStreamingConversation(false);
     setShowOrderGeneration(false);
+
+    void evaluateClarifications(query);
   };
 
   // Ces gestionnaires ne sont plus nécessaires car on utilise le store de conversation
@@ -164,18 +216,19 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
     // For replenishment orders, use the ChatInterface with sophisticated parsing
     if (query.toLowerCase().includes("replenishment")) {
       setSearchQuery(query);
+      setActiveQuery(query);
       setShowChatInterface(true);
       setShowOrderGeneration(false);
     } else {
       // For simple orders, show the basic order generation interface
       setSearchQuery(query);
+      setActiveQuery(query);
       setShowOrderGeneration(true);
       setShowChatInterface(false);
     }
   };
   const handleSuggestionClick = (suggestion: string) => {
-    setSearchQuery(suggestion);
-    handleChatSubmit(suggestion);
+    void handleChatSubmit(suggestion);
   };
   const handleOpenOrdersClick = () => {};
   const handleQuotesClick = () => {};
@@ -225,14 +278,23 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
     setShowOrderGeneration(false);
   };
 
+  const handleClarificationRetry = () => {
+    if (!activeQuery) return;
+    void evaluateClarifications(activeQuery);
+  };
+
   const handleNewQuery = () => {
     // Reset all chat-related states to return to main dashboard prompt box
     setShowChatInterface(false);
     setShowStreamingConversation(false);
     setShowOrderGeneration(false);
     setSearchQuery("");
+    setActiveQuery("");
     setIsLoadingOrderSummary(false);
     setIsGeneratingPO(false);
+    setClarificationResponse(null);
+    setClarificationError(null);
+    setIsLoadingClarifications(false);
 
     conversation.clearConversation();
   };
@@ -245,6 +307,16 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
           <Header />
 
           <main className="flex-1 flex flex-col px-4 py-4">
+            {hasClarificationOutput && (
+              <div className="mb-4">
+                <ClarificationPreview
+                  response={clarificationResponse}
+                  loading={isLoadingClarifications}
+                  error={clarificationError}
+                  onRetry={handleClarificationRetry}
+                />
+              </div>
+            )}
             {isGeneratingPO ? (
               <div className="flex items-center justify-center min-h-[80vh]">
                 <PurchaseOrderGenerationTransition
@@ -258,7 +330,7 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
                     Generating Purchase Order
                   </h2>
                   <p className="text-gray-400 mb-6">
-                    Processing your order request: "{searchQuery}"
+                    Processing your order request: "{activeQuery}"
                   </p>
                   <button
                     onClick={() => setShowOrderGeneration(false)}
@@ -279,7 +351,7 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
               </div>
             ) : showChatInterface ? (
               <ChatInterface
-                initialQuery={searchQuery}
+                initialQuery={activeQuery}
                 onSubmit={handleChatSubmit}
               />
             ) : (

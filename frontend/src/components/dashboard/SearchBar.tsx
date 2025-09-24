@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 interface SearchBarProps {
   searchQuery: string;
   setSearchQuery: (query: string) => void;
-  onSubmit: (query: string) => void;
+  onSubmit: (query: string) => void | Promise<void>;
   onNavigateToConversation?: (message: string) => void;
   onOrderGeneration?: (query: string) => void;
   onStreamingEvent?: (event: StreamEvent) => void;
@@ -66,6 +66,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
     const queryToUse = searchQuery.trim();
 
     if (!queryToUse) return;
+
+    void onSubmit(queryToUse);
 
     // Vider le champ de texte immédiatement
     setSearchQuery("");

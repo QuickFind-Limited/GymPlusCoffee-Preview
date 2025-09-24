@@ -80,12 +80,12 @@ interface ChatMessage {
 
 interface ChatInterfaceProps {
   initialQuery?: string;
-  onSubmit: (query: string) => void;
+  onSubmit: (query: string) => void | Promise<void>;
 }
 
-const ChatInterface = ({ 
-  initialQuery, 
-  onSubmit
+const ChatInterface = ({
+  initialQuery,
+  onSubmit,
 }: ChatInterfaceProps) => {
   console.log('🎯 ChatInterface mounted with initialQuery:', initialQuery);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -623,6 +623,8 @@ Note: This order will be assigned PO number PO-2025-0847 once confirmed.`,
   // Unified pipeline to process any query (initial, quick prompts, or manual submit)
   const processQuery = (query: string) => {
     if (!query.trim()) return;
+
+    void onSubmit(query);
 
     const newMessage: ChatMessage = {
       id: Date.now().toString(),
