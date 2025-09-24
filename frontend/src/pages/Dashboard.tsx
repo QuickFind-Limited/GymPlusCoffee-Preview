@@ -356,8 +356,6 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   }, [user]);
 
 
-
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-gray-100 dark:bg-black">
