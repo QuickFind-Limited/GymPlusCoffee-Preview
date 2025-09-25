@@ -30,13 +30,41 @@ logger = get_logger(__name__)
 
 # Create router
 router = APIRouter(
-    prefix="/api/v1/files",
+    prefix="/files",
     tags=["files"],
     dependencies=[Depends(require_auth)],
 )
 
 # Security configuration
-ALLOWED_BASE_DIR = Path("./tmp")
+
+
+def _init_base_directories() -> List[Path]:
+    """Return possible base directories where conversation files may live."""
+    candidates: List[Path] = []
+
+    env_base = os.environ.get("FILES_BASE_DIR")
+    if env_base:
+        candidates.append(Path(env_base))
+
+    repo_tmp = Path(__file__).resolve().parents[4] / "tmp"
+    candidates.append(repo_tmp)
+
+    candidates.append(Path.cwd() / "tmp")
+
+    unique: List[Path] = []
+    seen = set()
+    for candidate in candidates:
+        resolved = candidate if candidate.is_absolute() else (Path.cwd() / candidate)
+        resolved = resolved.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(resolved)
+
+    return unique
+
+
+BASE_DIRECTORIES = _init_base_directories()
+DEFAULT_BASE_DIR = BASE_DIRECTORIES[0]
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB limit
 ALLOWED_EXTENSIONS = {
     # Text files
@@ -45,7 +73,7 @@ ALLOWED_EXTENSIONS = {
     '.py', '.js', '.ts', '.java', '.cpp', '.c', '.h', '.cs', '.go', '.rs',
     '.php', '.rb', '.sh', '.sql', '.yaml', '.yml',
     # Documents
-    '.pdf', '.docx', '.xlsx', '.pptx',
+    '.pdf', '.doc', '.docx', '.rtf', '.xlsx', '.pptx',
     # Images
     '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.svg', '.webp',
     # Archives
@@ -96,8 +124,8 @@ def validate_and_resolve_path(conversation_id: str, file_path: str = "", directo
     if directory not in ['attachments', 'utils']:
         raise HTTPException(status_code=400, detail="Invalid directory type. Must be 'attachments' or 'utils'")
     
-    # Build the base path
-    base_path = ALLOWED_BASE_DIR / conversation_id / directory
+    # Build the base path using whichever directory currently contains the files
+    base_path = _resolve_conversation_directory(conversation_id, directory)
     
     # If no file_path provided, return the directory
     if not file_path:
@@ -111,15 +139,33 @@ def validate_and_resolve_path(conversation_id: str, file_path: str = "", directo
         raise HTTPException(status_code=400, detail="Invalid file path")
     
     # Resolve the full path
-    full_path = base_path / normalized_path
-    
+    full_path = (base_path / normalized_path).resolve()
+
     # Ensure the resolved path is still within the allowed directory
     try:
-        full_path.resolve().relative_to(base_path.resolve())
+        full_path.relative_to(base_path.resolve())
     except ValueError:
         raise HTTPException(status_code=400, detail="Path traversal detected")
     
     return full_path
+
+
+def _resolve_conversation_directory(conversation_id: str, directory: str) -> Path:
+    """Return the absolute path to a conversation subdirectory."""
+    for base in BASE_DIRECTORIES:
+        candidate = (base / conversation_id / directory).resolve()
+        if candidate.exists():
+            return candidate
+    return (DEFAULT_BASE_DIR / conversation_id / directory).resolve()
+
+
+def _resolve_conversation_root(conversation_id: str) -> Path:
+    """Return the absolute path to the conversation root directory."""
+    for base in BASE_DIRECTORIES:
+        candidate = (base / conversation_id).resolve()
+        if candidate.exists():
+            return candidate
+    return (DEFAULT_BASE_DIR / conversation_id).resolve()
 
 
 def get_content_type(file_path: Path) -> str:
@@ -211,8 +257,8 @@ async def get_conversation_info(
     try:
         logger.info(f"Getting conversation info for {conversation_id}")
         
-        base_path = ALLOWED_BASE_DIR / conversation_id
-        
+        base_path = _resolve_conversation_root(conversation_id)
+
         if not base_path.exists():
             raise HTTPException(status_code=404, detail=f"Conversation not found: {conversation_id}")
         
@@ -225,7 +271,7 @@ async def get_conversation_info(
         
         # Check each directory type
         for dir_type in ['attachments', 'utils']:
-            dir_path = base_path / dir_type
+            dir_path = _resolve_conversation_directory(conversation_id, dir_type)
             dir_info = {
                 "exists": dir_path.exists(),
                 "file_count": 0,
@@ -360,60 +406,48 @@ async def list_conversation_files(
         raise HTTPException(status_code=500, detail="Internal server error while listing files")
 
 
-@router.get("/conversations/{conversation_id}/{directory}/{file_path:path}")
-async def serve_conversation_file(
+@router.get("/conversations/{conversation_id}/attachments/{file_path:path}")
+async def serve_conversation_attachment(
     conversation_id: str = FastAPIPath(..., description="The conversation ID"),
-    directory: str = FastAPIPath(..., description="Directory containing the file (attachments or utils)"),
-    file_path: str = FastAPIPath(..., description="Path to the file within the directory"),
+    file_path: str = FastAPIPath(..., description="Path to the attachment within the conversation"),
     download: bool = Query(False, description="Force download instead of inline display")
 ):
-    """
-    Serve a file from a conversation directory.
-    
-    Serves files securely with proper content-type headers and security checks.
-    Supports both inline display and forced download.
-    
-    Parameters:
-    - conversation_id: The unique conversation identifier
-    - directory: The directory containing the file ('attachments' or 'utils')
-    - file_path: The path to the file within the directory
-    - download: If true, force download with Content-Disposition header
-    """
+    """Serve an attachment from a conversation's attachments directory."""
+    directory = "attachments"
+
     try:
         # Validate and resolve the file path
         resolved_path = validate_and_resolve_path(conversation_id, file_path, directory)
-        
-        logger.info(f"Serving file {resolved_path} for conversation {conversation_id}")
-        
+
+        logger.info(f"Serving attachment {resolved_path} for conversation {conversation_id}")
+
         # Security checks
         check_file_security(resolved_path)
-        
+
         # Get content type
         content_type = get_content_type(resolved_path)
-        
+
         # Prepare headers
         headers = {}
         if download:
             headers["Content-Disposition"] = f'attachment; filename="{resolved_path.name}"'
         else:
-            # For certain file types, suggest inline display
             if content_type.startswith(('text/', 'image/', 'application/json', 'application/xml')):
                 headers["Content-Disposition"] = f'inline; filename="{resolved_path.name}"'
-        
-        # Log successful file access
-        logger.info(f"Successfully serving {resolved_path} as {content_type}")
-        
+
+        logger.info(f"Successfully serving attachment {resolved_path} as {content_type}")
+
         return FileResponse(
             path=str(resolved_path),
             media_type=content_type,
             headers=headers
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error serving file {conversation_id}/{directory}/{file_path}: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error while serving file")
+        logger.error(f"Error serving attachment {conversation_id}/{directory}/{file_path}: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error while serving attachment")
 
 
 @router.get("/health")
@@ -422,7 +456,7 @@ async def files_health_check():
     return {
         "status": "healthy",
         "service": "file_router",
-        "base_directory": str(ALLOWED_BASE_DIR.resolve()),
+        "base_directories": [str(path) for path in BASE_DIRECTORIES],
         "max_file_size_mb": MAX_FILE_SIZE // 1024 // 1024,
         "allowed_extensions_count": len(ALLOWED_EXTENSIONS)
     }
@@ -438,23 +472,28 @@ async def list_conversations() -> dict:
     try:
         logger.info("Listing all conversations with files")
         
-        conversations = []
-        
-        if ALLOWED_BASE_DIR.exists():
-            for conv_dir in ALLOWED_BASE_DIR.iterdir():
-                if conv_dir.is_dir():
-                    # Check if conversation has either attachments or utils directories
-                    has_attachments = (conv_dir / "attachments").exists()
-                    has_utils = (conv_dir / "utils").exists()
-                    
-                    if has_attachments or has_utils:
-                        conversations.append({
-                            "conversation_id": conv_dir.name,
-                            "has_attachments": has_attachments,
-                            "has_utils": has_utils
-                        })
-        
-        conversations.sort(key=lambda x: x["conversation_id"])
+        conversations_map: dict[str, dict] = {}
+
+        for base in BASE_DIRECTORIES:
+            if not base.exists():
+                continue
+            for conv_dir in base.iterdir():
+                if not conv_dir.is_dir():
+                    continue
+
+                entry = conversations_map.setdefault(
+                    conv_dir.name,
+                    {
+                        "conversation_id": conv_dir.name,
+                        "has_attachments": False,
+                        "has_utils": False,
+                    },
+                )
+
+                entry["has_attachments"] = entry["has_attachments"] or (conv_dir / "attachments").exists()
+                entry["has_utils"] = entry["has_utils"] or (conv_dir / "utils").exists()
+
+        conversations = sorted(conversations_map.values(), key=lambda x: x["conversation_id"])
         
         logger.info(f"Found {len(conversations)} conversations with files")
         

@@ -16,7 +16,7 @@ import os
 import mimetypes
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from urllib.parse import unquote
 
 from fastapi import APIRouter, Depends, HTTPException, Path as PathParam, Query
@@ -38,7 +38,35 @@ router = APIRouter(
 )
 
 # Constants
-ATTACHMENTS_BASE_DIR = Path("./tmp")
+
+
+def _init_base_directories() -> List[Path]:
+    """Return candidate base directories for session attachments."""
+    candidates: List[Path] = []
+
+    env_base = os.environ.get("FILES_BASE_DIR")
+    if env_base:
+        candidates.append(Path(env_base))
+
+    repo_tmp = Path(__file__).resolve().parents[4] / "tmp"
+    candidates.append(repo_tmp)
+
+    candidates.append(Path.cwd() / "tmp")
+
+    unique: List[Path] = []
+    seen = set()
+    for candidate in candidates:
+        resolved = candidate if candidate.is_absolute() else (Path.cwd() / candidate)
+        resolved = resolved.resolve()
+        if resolved not in seen:
+            seen.add(resolved)
+            unique.append(resolved)
+
+    return unique
+
+
+BASE_DIRECTORIES = _init_base_directories()
+DEFAULT_BASE_DIR = BASE_DIRECTORIES[0]
 MAX_FILE_SIZE = 100 * 1024 * 1024  # 100MB limit
 ALLOWED_FILE_EXTENSIONS = {
     # Documents
@@ -54,6 +82,15 @@ ALLOWED_FILE_EXTENSIONS = {
     # Media
     '.mp3', '.mp4', '.avi', '.mov', '.wav'
 }
+
+
+def _resolve_session_directory(session_id: str, subdir: str = "attachments") -> Path:
+    """Return the absolute path to a session directory within the tmp tree."""
+    for base in BASE_DIRECTORIES:
+        candidate = (base / session_id / subdir).resolve()
+        if candidate.exists():
+            return candidate
+    return (DEFAULT_BASE_DIR / session_id / subdir).resolve()
 
 
 def validate_session_id(session_id: str) -> bool:
@@ -108,11 +145,13 @@ def get_safe_file_path(session_id: str, file_path: str) -> Optional[Path]:
         decoded_path = unquote(file_path)
         
         # Build safe path
-        attachments_dir = ATTACHMENTS_BASE_DIR / session_id / "attachments"
+        attachments_dir = _resolve_session_directory(session_id, "attachments")
         full_path = (attachments_dir / decoded_path).resolve()
-        
+
         # Ensure the resolved path is within the allowed directory
-        if not str(full_path).startswith(str(attachments_dir.resolve())):
+        try:
+            full_path.relative_to(attachments_dir)
+        except ValueError:
             logger.warning(f"Path traversal attempt detected: {file_path}")
             return None
         
@@ -262,9 +301,9 @@ async def get_file_info(
         stat = safe_path.stat()
         
         # Calculate relative path from attachments directory
-        attachments_dir = ATTACHMENTS_BASE_DIR / session_id / "attachments"
+        attachments_dir = _resolve_session_directory(session_id, "attachments")
         try:
-            relative_path = safe_path.relative_to(attachments_dir.resolve())
+            relative_path = safe_path.relative_to(attachments_dir)
         except ValueError:
             # Fallback to just the filename if relative_to fails
             relative_path = safe_path.name
@@ -312,7 +351,7 @@ async def list_session_files(
             detail="Invalid session ID format"
         )
     
-    attachments_dir = ATTACHMENTS_BASE_DIR / session_id / "attachments"
+    attachments_dir = _resolve_session_directory(session_id, "attachments")
     
     # Check if directory exists
     if not attachments_dir.exists():
@@ -400,7 +439,7 @@ async def clean_session_files(
             detail="Invalid session ID format"
         )
     
-    attachments_dir = ATTACHMENTS_BASE_DIR / session_id / "attachments"
+    attachments_dir = _resolve_session_directory(session_id, "attachments")
     
     if not attachments_dir.exists():
         return {"deleted_count": 0, "message": "No files to clean"}
