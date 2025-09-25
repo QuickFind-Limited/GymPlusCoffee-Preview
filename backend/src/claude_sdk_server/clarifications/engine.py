@@ -3,13 +3,11 @@
 from __future__ import annotations
 
 import difflib
-import math
 from collections import Counter
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Tuple
 
 from .data_loader import load_clarification_dataset
-from .embeddings import EmbeddingError, embed_text
 from .models import (
     ClarificationDataset,
     ClarificationRecord,
@@ -18,10 +16,6 @@ from .models import (
     ClarificationSuggestion,
 )
 from .system_defaults import load_system_default_results
-from ..utils.logging_config import get_logger
-
-
-logger = get_logger(__name__)
 
 
 class ClarificationEngine:
@@ -32,7 +26,6 @@ class ClarificationEngine:
         self.system_defaults = load_system_default_results()
         self._token_cache: Dict[str, List[str]] = {}
         self._embedding_index: Dict[str, Counter[str]] = self._build_embedding_index()
-        self._question_embedding_cache: Dict[str, List[float]] = {}
 
     # ---------------------------------------------------------------------
     # Data refresh helpers
@@ -42,23 +35,12 @@ class ClarificationEngine:
         self.system_defaults = load_system_default_results()
         self._token_cache.clear()
         self._embedding_index = self._build_embedding_index()
-        self._question_embedding_cache.clear()
 
     # ---------------------------------------------------------------------
     # Public API
     # ---------------------------------------------------------------------
     def evaluate(self, request: ClarificationRequest) -> ClarificationResponse:
-        query_embedding: Optional[List[float]] = None
-        try:
-            query_embedding = embed_text(request.user_query)
-        except Exception as exc:  # pragma: no cover - logging path
-            logger.warning(
-                "clarification_embedding_query_failed",
-                error=str(exc),
-                session_id=request.session_id,
-            )
-
-        matches = self._score_candidates(request, query_embedding)
+        matches = self._score_candidates(request)
 
         suggestions: List[ClarificationSuggestion] = []
         seen_keys: set[tuple[str, tuple[str, ...]]] = set()
@@ -105,8 +87,6 @@ class ClarificationEngine:
             )
 
         evaluated_at = datetime.now(timezone.utc).isoformat()
-        # Drop auto defaults so nothing auto-applies until we redesign them.
-        auto_applied = {}
         return ClarificationResponse(
             user_query=request.user_query,
             suggestions=suggestions,
@@ -119,9 +99,7 @@ class ClarificationEngine:
     # Internal helpers
     # ------------------------------------------------------------------
     def _score_candidates(
-        self,
-        request: ClarificationRequest,
-        query_embedding: Optional[List[float]],
+        self, request: ClarificationRequest
     ) -> List[Tuple[int, ClarificationRecord]]:
         scored: List[Tuple[int, ClarificationRecord]] = []
         query_tokens = self._tokens_for(request.user_query)
@@ -154,17 +132,6 @@ class ClarificationEngine:
 
             if score >= 5:
                 scored.append((score, record))
-
-            if query_embedding is not None:
-                similarity = self._semantic_similarity(query_embedding, record)
-                if similarity is not None:
-                    logger.structured(
-                        "clarification_semantic_similarity",
-                        session_id=request.session_id,
-                        question_id=record.question_id,
-                        similarity=similarity,
-                        heuristic_score=score,
-                    )
 
         scored.sort(key=lambda item: item[0], reverse=True)
         return scored[:10]
@@ -200,53 +167,6 @@ class ClarificationEngine:
         intersection = sum((query_counter & target).values())
         union = sum((query_counter | target).values()) or 1
         return intersection / union
-
-    def _semantic_similarity(
-        self, query_embedding: List[float], record: ClarificationRecord
-    ) -> Optional[float]:
-        try:
-            question_embedding = self._question_embedding(record)
-        except Exception as exc:  # pragma: no cover - logging path
-            logger.warning(
-                "clarification_embedding_question_failed",
-                question_id=record.question_id,
-                error=str(exc),
-            )
-            return None
-
-        if not question_embedding:
-            return None
-
-        dot = sum(a * b for a, b in zip(query_embedding, question_embedding))
-        norm_a = math.sqrt(sum(a * a for a in query_embedding))
-        norm_b = math.sqrt(sum(b * b for b in question_embedding))
-        if not norm_a or not norm_b:
-            return None
-        return dot / (norm_a * norm_b)
-
-    def _question_embedding(self, record: ClarificationRecord) -> List[float]:
-        cached = self._question_embedding_cache.get(record.question_id)
-        if cached is not None:
-            return cached
-
-        text_parts: List[str] = [record.user_question, record.clarification_question]
-        if record.context_tags:
-            text_parts.extend(record.context_tags)
-        if record.options:
-            text_parts.extend(option.display_value for option in record.options[:5])
-        text = " | ".join(part for part in text_parts if part)
-        if not text:
-            text = record.question_id
-
-        try:
-            embedding = embed_text(text)
-        except EmbeddingError:
-            raise
-        except Exception as exc:
-            raise EmbeddingError(str(exc)) from exc
-
-        self._question_embedding_cache[record.question_id] = embedding
-        return embedding
 
     def _build_reason(self, record: ClarificationRecord, defaults: Dict[str, str]) -> str:
         if defaults:
@@ -338,3 +258,4 @@ def re_split(text: str) -> List[str]:
     import re
 
     return [token for token in re.split(r"[^a-z0-9]+", text) if token]
+

@@ -137,7 +137,6 @@ class ClaudeService:
             max_turns=request.max_turns,
             permission_mode="bypassPermissions",
             model=request.model,
-            max_thinking_tokens=request.max_thinking_tokens,
             system_prompt=enhanced_system_prompt,
         )
 
