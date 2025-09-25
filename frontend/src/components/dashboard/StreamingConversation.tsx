@@ -41,6 +41,7 @@ interface StreamingConversationProps {
   onStreamingError?: (error: Error) => void;
   clarificationSummary?: ClarificationResolvedContextProps | null;
   clarificationCard?: ClarificationQuestionCardProps | null;
+  onSubmit?: (query: string) => void | Promise<void>;
 }
 
 // Function to detect and strip JSON blocks from content
@@ -148,6 +149,7 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
   onStreamingError,
   clarificationSummary = null,
   clarificationCard = null,
+  onSubmit,
 }) => {
   const [events, setEvents] = useState<StreamEvent[]>(propEvents);
   const [isStreaming, setIsStreaming] = useState(propIsStreaming);
@@ -162,6 +164,11 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
     displayName: string;
   } | null>(null);
   const [expandedWrappers, setExpandedWrappers] = useState<Set<string>>(new Set());
+
+  // Keep optional callbacks referenced to avoid unused warnings even if not currently utilized
+  void onStreamingEvent;
+  void onStreamingEnd;
+  void onStreamingError;
 
   // Calculate the index and timestamp of the last user message
   const lastUserMessageIndex = (() => {
@@ -350,11 +357,20 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
     scrollToBottom();
   }, [events, conversationMessages]);
 
-  const handleSubmit = (query: string) => {
-    // This function is no longer used because we use the conversation store
-    // but we keep it for compatibility with SearchBar
-    if (onStreamingStart) {
-      onStreamingStart();
+  const handleSubmit = async (query: string) => {
+    const trimmed = query.trim();
+    if (!trimmed) {
+      return;
+    }
+
+    try {
+      if (onSubmit) {
+        await onSubmit(trimmed);
+      } else if (onStreamingStart) {
+        onStreamingStart();
+      }
+    } finally {
+      setSearchQuery("");
     }
   };
 
@@ -1317,10 +1333,6 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onSubmit={handleSubmit}
-          onStreamingEvent={onStreamingEvent}
-          onStreamingStart={onStreamingStart}
-          onStreamingEnd={onStreamingEnd}
-          onStreamingError={onStreamingError}
         />
       </div>
       {filePreview && (

@@ -105,6 +105,8 @@ class ClarificationEngine:
             )
 
         evaluated_at = datetime.now(timezone.utc).isoformat()
+        # Drop auto defaults so nothing auto-applies until we redesign them.
+        auto_applied = {}
         return ClarificationResponse(
             user_query=request.user_query,
             suggestions=suggestions,

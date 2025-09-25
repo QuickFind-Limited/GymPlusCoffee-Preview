@@ -30,13 +30,7 @@ interface DashboardProps {
   onNavigateToConversation?: (message: string) => void;
 }
 
-const CRITICAL_REQUIREMENTS = `CURRENT DATE: Thursday, September 18, 2025
-
-CRITICAL REQUIREMENTS FOR ALL RESPONSES:
-1. When creating a Purchase Order, your FINAL message MUST start with "Purchase Order #PO-2025-XXXX has been created"
-2. ALWAYS use September 18, 2025 as today's date for any date calculations
-3. PO numbers follow the format PO-2025-XXXX
-`;
+const CLARIFIERS_ENABLED = false;
 
 interface ClarificationAnswerPayload {
   questionId: string;
@@ -88,6 +82,20 @@ const formatList = (values: string[]): string => {
   const tail = values[values.length - 1];
   return `${head} and ${tail}`;
 };
+
+const createEmptyClarificationState = (
+  query: string
+): ClarificationSessionState => ({
+  session_id: `local-${Date.now()}`,
+  original_query: query,
+  auto_applied: {},
+  answers: {},
+  pending: [],
+  matched_question_ids: [],
+  resolved_context: {},
+  status: 'ready',
+  updated_at: new Date().toISOString(),
+});
 
 const buildClarificationAnswers = (
   state: ClarificationSessionState,
@@ -287,7 +295,7 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
       model: 'claude-sonnet-4-20250514',
       max_turns: 30,
       session_id: conversation.sessionId || undefined,
-      system_prompt: CRITICAL_REQUIREMENTS + (conversation.systemPrompt.trim() || ''),
+      system_prompt: conversation.systemPrompt.trim() || '',
     };
 
     try {
@@ -335,6 +343,10 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   };
 
   const evaluateClarifications = async (query: string) => {
+    if (!CLARIFIERS_ENABLED) {
+      return;
+    }
+
     if (!query.trim()) {
       resetClarificationUI();
       return;
@@ -399,6 +411,12 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
     conversation.setIsStreaming(true);
 
     resetClarificationUI();
+
+    if (!CLARIFIERS_ENABLED) {
+      const emptyState = createEmptyClarificationState(trimmed);
+      void startStreaming(trimmed, emptyState);
+      return;
+    }
 
     setTimeout(() => {
       conversation.setIsStreaming(false);
@@ -800,6 +818,7 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
                   conversationMessages={conversation.messages}
                   clarificationSummary={clarificationSummary}
                   clarificationCard={clarificationCard}
+                  onSubmit={handleChatSubmit}
                 />
               </div>
             ) : showChatInterface ? (
