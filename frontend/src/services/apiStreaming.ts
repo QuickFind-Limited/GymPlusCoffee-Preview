@@ -6,6 +6,7 @@
 */
 
 import { supabase } from '@/integrations/supabase/client';
+import { API_BASE_URL } from '@/config/api';
 
 export interface StreamEventData {
   status?: string;
@@ -56,9 +57,7 @@ export interface StreamingOptions {
 }
 
 export class APIStreamingService {
-  private readonly baseUrl = `${
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api/v1"
-  }/query/stream`;
+  private readonly baseUrl = `${API_BASE_URL}/query/stream`;
   private currentController: AbortController | null = null;
   private currentSessionId: string | null = null;
   private currentTimeoutHandle: ReturnType<typeof setTimeout> | null = null;

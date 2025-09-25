@@ -22,7 +22,9 @@ import {
 import React, { useEffect, useRef, useState } from "react";
 import SearchBar from "./SearchBar";
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+import { API_ROOT_URL } from '@/config/api';
+
+const API_BASE = API_ROOT_URL;
 
 interface ConversationMessage {
   id: string;

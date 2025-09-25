@@ -8,18 +8,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import PdfPreview from "@/components/PdfPreview";
 import * as XLSX from "xlsx";
 import { authorizedFetch } from "@/services/authorizedFetch";
+import { API_ROOT_URL } from '@/config/api';
 
 type FileKind = "markdown" | "json" | "csv" | "text" | "pdf" | "image" | "excel";
 
-interface FilePreviewSheetProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  conversationId: string;
-  filename: string; // just the filename, not a path
-  displayName?: string;
-}
-
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE = API_ROOT_URL;
 
 export const FilePreviewSheet: React.FC<FilePreviewSheetProps> = ({
   open,

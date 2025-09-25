@@ -5,7 +5,8 @@ services:
       dockerfile: Dockerfile
     image: claude-sdk-server:latest
     container_name: claude-sdk-server
-    network_mode: host
+    ports:
+      - "${HOST_API_PORT:-8000}:8000"
     volumes:
       - ./src:/app/src
       - ./tests:/app/tests

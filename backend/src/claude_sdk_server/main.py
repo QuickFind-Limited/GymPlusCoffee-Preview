@@ -37,16 +37,45 @@ app = FastAPI(
     description="Minimal REST API server for Claude Code SDK",
 )
 
-# Configure CORS for frontend access
+default_allowed_origins = [
+    "http://localhost:3000",
+    "http://localhost:3002",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3002",
+    "http://localhost:8000",
+    "http://localhost:8081",
+]
+
+cors_origins_env = os.getenv("CORS_ALLOW_ORIGINS")
+allowed_origins = (
+    [origin.strip() for origin in cors_origins_env.split(",") if origin.strip()]
+    if cors_origins_env
+    else default_allowed_origins
+)
+
+allow_credentials = (
+    os.getenv("CORS_ALLOW_CREDENTIALS", "true").strip().lower() == "true"
+)
+
+if "*" in allowed_origins and allow_credentials:
+    logger.warning(
+        "Wildcard CORS origin requires allow_credentials to be disabled;"
+        " falling back to allow_credentials=False"
+    )
+    allow_credentials = False
+
+logger.context(
+    "Configuring CORS middleware",
+    context_data={
+        "allowed_origins": allowed_origins,
+        "allow_credentials": allow_credentials,
+    },
+)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:8000",
-        "http://localhost:8081",
-        "*",
-    ],
-    allow_credentials=True,
+    allow_origins=allowed_origins,
+    allow_credentials=allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )
