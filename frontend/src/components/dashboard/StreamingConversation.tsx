@@ -12,6 +12,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  ClipboardList,
   FileText,
   MessageSquare,
   Paperclip,
@@ -42,6 +43,8 @@ interface StreamingConversationProps {
   clarificationSummary?: ClarificationResolvedContextProps | null;
   clarificationCard?: ClarificationQuestionCardProps | null;
   onSubmit?: (query: string) => void | Promise<void>;
+  thinkOutLoudEnabled?: boolean;
+  onToggleThinkOutLoud?: (enabled: boolean) => void;
 }
 
 // Function to detect and strip JSON blocks from content
@@ -150,6 +153,8 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
   clarificationSummary = null,
   clarificationCard = null,
   onSubmit,
+  thinkOutLoudEnabled = false,
+  onToggleThinkOutLoud,
 }) => {
   const [events, setEvents] = useState<StreamEvent[]>(propEvents);
   const [isStreaming, setIsStreaming] = useState(propIsStreaming);
@@ -169,6 +174,67 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
   void onStreamingEvent;
   void onStreamingEnd;
   void onStreamingError;
+
+  type NormalizedTurnEvent = {
+    event: StreamEvent;
+    content: string;
+    isTodo: boolean;
+  };
+
+  const isTodoLogEvent = (event: StreamEvent): boolean => {
+    const dataType = typeof event.data?.type === "string" ? event.data.type.toLowerCase() : "";
+    if (dataType === "todo_identified") {
+      return true;
+    }
+    if (dataType === "tool_use") {
+      const toolName = (event.data as any)?.tool_name;
+      if (typeof toolName === "string" && toolName.toLowerCase() === "todowrite") {
+        return true;
+      }
+    }
+    const displays: Array<unknown> = [event.display, event.data?.display];
+    return displays.some((value) =>
+      typeof value === "string" && value.toLowerCase().includes("todo")
+    );
+  };
+
+  const normalizeTodoDisplay = (value?: string): string => {
+    if (!value) {
+      return "";
+    }
+    return value
+      .replace(/[\u{1F300}-\u{1FAFF}]/gu, "")
+      .replace(/^\s*(todo update:|todo identified:)/i, "")
+      .replace(/^\s*(todo:)/i, "")
+      .replace(/^\s*(todo)/i, "")
+      .trim();
+  };
+
+  const extractTodoContent = (event: StreamEvent): string => {
+    const data = event.data as Record<string, unknown> | undefined;
+    const candidates: Array<unknown> = [
+      data?.todo_content,
+      data?.input_summary,
+      data?.result_summary,
+      typeof event.display === "string" ? event.display : undefined,
+      typeof data?.display === "string" ? (data?.display as string) : undefined,
+      event.full_content,
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === "string") {
+        const cleaned = normalizeTodoDisplay(candidate);
+        if (cleaned) {
+          const lower = cleaned.toLowerCase();
+          if (lower === "managing task list" || lower === "todo list update" || lower === "todo update") {
+            continue;
+          }
+          return cleaned;
+        }
+      }
+    }
+    return "";
+  };
 
   // Calculate the index and timestamp of the last user message
   const lastUserMessageIndex = (() => {
@@ -555,30 +621,62 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                     // Only hide the last assistant message if this is the current turn and there's a final response
                     const shouldHideLastAssistant = message.id === lastUserMessageId && assistantMessageToHideId;
 
-                    const filteredEvents = turnEvents.filter((e) => {
-                      const isValidMessage = e.type === "message" &&
-                             e.data?.type === "assistant_message" &&
-                             !!e.full_content &&
-                             !(shouldHideLastAssistant && e.id === assistantMessageToHideId);
-                      return isValidMessage;
-                    });
+                    const normalizedAssistant: NormalizedTurnEvent[] = [];
+                    const normalizedTodos: NormalizedTurnEvent[] = [];
+                    const seenTodoContent = new Set<string>();
 
+                    for (const event of turnEvents) {
+                      if (
+                        event.type === "message" &&
+                        event.data?.type === "assistant_message" &&
+                        !!event.full_content &&
+                        !(shouldHideLastAssistant && event.id === assistantMessageToHideId)
+                      ) {
+                        normalizedAssistant.push({
+                          event,
+                          content: event.full_content,
+                          isTodo: false,
+                        });
+                        continue;
+                      }
 
-                    if (filteredEvents.length === 0) {
+                      if (event.type === "log" && isTodoLogEvent(event)) {
+                        const content = extractTodoContent(event);
+                        const key = content.trim().toLowerCase();
+                        if (content && !seenTodoContent.has(key)) {
+                          seenTodoContent.add(key);
+                          normalizedTodos.push({
+                            event,
+                            content,
+                            isTodo: true,
+                          });
+                        }
+                      }
+                    }
+
+                    const normalizedEvents = [...normalizedAssistant, ...normalizedTodos].sort(
+                      (a, b) =>
+                        new Date(a.event.timestamp).getTime() -
+                        new Date(b.event.timestamp).getTime()
+                    );
+
+                    if (normalizedEvents.length === 0) {
                       return null;
                     }
 
-                    const [firstEvent, ...subtasks] = filteredEvents;
+                    const firstAssistantIndex = normalizedEvents.findIndex((entry) => !entry.isTodo);
+                    if (firstAssistantIndex > 0) {
+                      const [firstAssistant] = normalizedEvents.splice(firstAssistantIndex, 1);
+                      normalizedEvents.unshift(firstAssistant);
+                    }
+
+                    const [firstEvent, ...subtasks] = normalizedEvents;
                     const hasFinalResponse = turnEvents.some((e) => e.type === "final_response");
                     const wrapperId = `wrapper-${message.id}`;
 
-                    if (!firstEvent) {
-                      return null;
-                    }
-
-                    const strippedFirstContent = stripJsonBlocks(firstEvent.full_content || "").trim();
+                    const strippedFirstContent = stripJsonBlocks(firstEvent.content).trim();
                     const hasValidSubtasks = subtasks.some((task) =>
-                      stripJsonBlocks(task.full_content || "").trim().length > 0
+                      stripJsonBlocks(task.content).trim().length > 0
                     );
 
                     if (!strippedFirstContent && !hasValidSubtasks) {
@@ -637,15 +735,23 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                               {/* Subtasks inside the container - collapsible */}
                               {subtasks.length > 0 && isExpanded && (
                                 <div className="mt-4 space-y-1">
-                                  {subtasks.map((event, index) => {
-                                    const strippedContent = stripJsonBlocks(event.full_content || "").trim();
+                                  {subtasks.map((task, index) => {
+                                    const strippedContent = stripJsonBlocks(task.content).trim();
                                     if (!strippedContent) return null; // Skip empty subtasks
+                                    const isTodo = task.isTodo;
+                                    const isLastStreamingSubtask =
+                                      !isTodo &&
+                                      isCurrentTurn &&
+                                      isStreaming &&
+                                      index === subtasks.length - 1;
                                     return (
-                                      <div key={event.id} className="animate-fade-in pl-3">
+                                      <div key={task.event.id || `subtask-${index}`} className="animate-fade-in pl-3">
                                         <div className="flex items-start gap-2">
                                           <div className="flex-shrink-0 mt-1">
                                             {/* Show spinner only if streaming and this is the last sub-task */}
-                                            {isCurrentTurn && isStreaming && index === subtasks.length - 1 ? (
+                                            {isTodo ? (
+                                              <ClipboardList className="h-4 w-4 text-amber-500" />
+                                            ) : isLastStreamingSubtask ? (
                                               <div className="h-3 w-3 border-2 border-gray-400 border-t-transparent rounded-full animate-spin [animation-duration:0.6s]" />
                                             ) : (
                                               <div className="h-3 w-3 bg-gray-300 dark:bg-gray-400 rounded-full flex items-center justify-center">
@@ -654,6 +760,11 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                                             )}
                                           </div>
                                           <div className="flex-1 min-w-0 [&_*]:!text-[11px] text-muted-foreground">
+                                            {isTodo && (
+                                              <span className="uppercase tracking-wide text-[10px] font-medium text-amber-600 dark:text-amber-400 block mb-0.5">
+                                                Action item
+                                              </span>
+                                            )}
                                             <MarkdownRenderer content={strippedContent} />
                                           </div>
                                         </div>
@@ -671,7 +782,7 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground mt-1 ml-2">
-                              Assistant • {new Date(firstEvent.timestamp).toLocaleTimeString()}
+                              {firstEvent.isTodo ? 'Action item' : 'Assistant'} • {new Date(firstEvent.event.timestamp).toLocaleTimeString()}
                             </div>
                           </div>
                         </div>
@@ -1328,11 +1439,14 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
       </ScrollArea>
 
       {/* Input de conversation en bas */}
-      <div className="flex-shrink-0 p-4 border-t bg-background">
+      <div className="border-t bg-background px-4 pt-2 pb-0">
         <SearchBar
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onSubmit={handleSubmit}
+          containerClassName="relative"
+          thinkOutLoudEnabled={thinkOutLoudEnabled}
+          onToggleThinkOutLoud={onToggleThinkOutLoud}
         />
       </div>
       {filePreview && (

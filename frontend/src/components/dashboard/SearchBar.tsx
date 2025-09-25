@@ -7,6 +7,7 @@ import {
 } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { ArrowRight } from 'lucide-react';
 
 interface SearchBarProps {
@@ -15,6 +16,9 @@ interface SearchBarProps {
   onSubmit: (query: string) => void | Promise<void>;
   onNavigateToConversation?: (message: string) => void;
   onOrderGeneration?: (query: string) => void;
+  containerClassName?: string;
+  thinkOutLoudEnabled?: boolean;
+  onToggleThinkOutLoud?: (enabled: boolean) => void;
 }
 
 const SearchBar: React.FC<SearchBarProps> = ({
@@ -23,6 +27,9 @@ const SearchBar: React.FC<SearchBarProps> = ({
   onSubmit,
   onNavigateToConversation,
   onOrderGeneration,
+  containerClassName,
+  thinkOutLoudEnabled = false,
+  onToggleThinkOutLoud,
 }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
@@ -62,8 +69,8 @@ const SearchBar: React.FC<SearchBarProps> = ({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="relative mb-3">
-      <div className={`relative transition-all duration-300`}>
+    <form onSubmit={handleSubmit} className={containerClassName ?? 'relative mb-0'}>
+      <div className={`relative transition-all duration-300 mt-2`}>
         <textarea
           ref={textareaRef}
           value={searchQuery}
@@ -95,6 +102,22 @@ const SearchBar: React.FC<SearchBarProps> = ({
           Advanced options
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-3 space-y-3 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+          <div className="space-y-2">
+            <Label className="text-xs uppercase tracking-wide">
+              Think-out-loud mode
+            </Label>
+            <div className="flex items-center justify-between rounded-lg border border-dashed border-primary/40 px-3 py-2">
+              <div className="mr-4">
+                <p className="text-xs font-medium text-foreground dark:text-white">Force think-out-loud</p>
+                <p className="text-[11px] text-muted-foreground">Appends "and make sure you THINK OUT LOUD for EVERY response you provide" to each query.</p>
+              </div>
+              <Switch
+                checked={thinkOutLoudEnabled}
+                onCheckedChange={(value) => onToggleThinkOutLoud?.(value)}
+                aria-label="Toggle think-out-loud enforcement"
+              />
+            </div>
+          </div>
           <div className="space-y-2">
             <Label htmlFor="quick-jump" className="text-xs uppercase tracking-wide">
               Jump to saved conversation

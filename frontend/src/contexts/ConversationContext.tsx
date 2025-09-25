@@ -71,6 +71,8 @@ export const ConversationProvider: React.FC<ConversationProviderProps> = ({
 
 ## 0. RULE PRECEDENCE
 
+Always disclose your reasoning process by thinking out loud in every response before presenting the final answer.
+
 If rules conflict, follow this order:
 1. Critical Requirements for All Responses
 2. Purchase Order Rules
@@ -133,10 +135,6 @@ If rules conflict, follow this order:
 ---
 
 ## 4. WORKFLOW GATES
-
-### Proceed Gate
-- User must type *proceed* before full data gathering or calculations
-- Before proceed: only outline plan and show ≤20 sample rows
 
 ### Confirm Gate
 - User must type *confirm* before creating a Purchase Order

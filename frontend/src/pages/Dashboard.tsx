@@ -31,6 +31,7 @@ interface DashboardProps {
 }
 
 const CLARIFIERS_ENABLED = false;
+const THINK_OUT_LOUD_STORAGE_KEY = 'gpc_think_out_loud_enabled';
 
 interface ClarificationAnswerPayload {
   questionId: string;
@@ -238,6 +239,47 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
   const [clarificationError, setClarificationError] = useState<string | null>(null);
   const [clarificationQuestionText, setClarificationQuestionText] = useState<Record<string, string>>({});
 
+  const [thinkOutLoudEnabled, setThinkOutLoudEnabled] = useState<boolean>(() => {
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    try {
+      const stored = window.localStorage.getItem(THINK_OUT_LOUD_STORAGE_KEY);
+      return stored ? stored === 'true' : false;
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        THINK_OUT_LOUD_STORAGE_KEY,
+        thinkOutLoudEnabled ? 'true' : 'false'
+      );
+    } catch {
+      // ignore write errors
+    }
+  }, [thinkOutLoudEnabled]);
+
+  const thinkOutLoudPhrase = 'and make sure you THINK OUT LOUD for EVERY response you provide';
+
+  const renderDisplayQuery = (input: string): string => input.trim();
+
+  const buildStreamingQuery = (input: string): string => {
+    const trimmed = input.trim();
+    if (!trimmed) {
+      return '';
+    }
+    if (!thinkOutLoudEnabled) {
+      return trimmed;
+    }
+    if (trimmed.toLowerCase().includes(thinkOutLoudPhrase.toLowerCase())) {
+      return trimmed;
+    }
+    return `${trimmed} ${thinkOutLoudPhrase}`;
+  };
+
   const conversation = useConversation();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -401,26 +443,29 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
     const trimmed = query.trim();
     if (!trimmed) return;
 
-    setActiveQuery(trimmed);
+    const displayQuery = renderDisplayQuery(trimmed);
+    const streamingQuery = buildStreamingQuery(trimmed);
+
+    setActiveQuery(displayQuery);
     setSearchQuery('');
     setShowChatInterface(false);
     setShowStreamingConversation(true);
     setShowOrderGeneration(false);
 
-    conversation.addUserMessage(trimmed);
+    conversation.addUserMessage(displayQuery);
     conversation.setIsStreaming(true);
 
     resetClarificationUI();
 
     if (!CLARIFIERS_ENABLED) {
-      const emptyState = createEmptyClarificationState(trimmed);
-      void startStreaming(trimmed, emptyState);
+      const emptyState = createEmptyClarificationState(streamingQuery);
+      void startStreaming(streamingQuery, emptyState);
       return;
     }
 
     setTimeout(() => {
       conversation.setIsStreaming(false);
-      void evaluateClarifications(trimmed);
+      void evaluateClarifications(streamingQuery);
     }, 3000);
   };
 
@@ -819,6 +864,8 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
                   clarificationSummary={clarificationSummary}
                   clarificationCard={clarificationCard}
                   onSubmit={handleChatSubmit}
+                  thinkOutLoudEnabled={thinkOutLoudEnabled}
+                  onToggleThinkOutLoud={setThinkOutLoudEnabled}
                 />
               </div>
             ) : showChatInterface ? (
@@ -848,6 +895,8 @@ const Dashboard = ({ onNavigateToConversation }: DashboardProps) => {
                     onSubmit={handleChatSubmit}
                     onNavigateToConversation={onNavigateToConversation}
                     onOrderGeneration={handleOrderGeneration}
+                    thinkOutLoudEnabled={thinkOutLoudEnabled}
+                    onToggleThinkOutLoud={setThinkOutLoudEnabled}
                   />
                 </div>
 
