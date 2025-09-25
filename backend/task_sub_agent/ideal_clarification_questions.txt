@@ -1,0 +1,45 @@
+For this query -> How many water bottles sold in each retail store between 1st Jan and 30th June 2025 (quantity + value)?
+
+I expect to get the following, however the LLM should be able to determine that Sales Channel question has already been answered (i.e. 'retail store' = PoS) and determine that Sales Metric question has already been answered (i.e. 'quantity + value' = Revenue). Also, Claude will rephrase the simple question text like 'Which sales channels?' to something a little more verbose and user friendly?
+
+	⁠Which locations should I check?
+
+•⁠  ⁠Blanchardstown Centre
+•⁠  ⁠Crescent Centre
+•⁠  ⁠Dundrum Town Centre
+•⁠  ⁠Galway
+•⁠  ⁠Jervis Centre
+•⁠  ⁠Liffey Valley
+•⁠  ⁠Mahon Point
+•⁠  ⁠Swords Pavillon
+•⁠  ⁠Liverpool
+•⁠  ⁠Manchester
+•⁠  ⁠Westfield London
+•⁠  ⁠Belfast
+
+	⁠Which sales channels?
+
+•⁠  ⁠Call Center
+•⁠  ⁠Point of Sale
+•⁠  ⁠Web Store
+
+	⁠Which types of sales transactions should I include?
+
+•⁠  ⁠Cash Sales
+•⁠  ⁠Sales Orders
+
+	⁠Which sales metric?
+
+•⁠  ⁠Growth Rate
+•⁠  ⁠Profit Margin
+•⁠  ⁠Revenue
+  
+	⁠In which currency?
+
+•⁠  ⁠AUD (AUD)
+•⁠  ⁠CAD (CAD)
+•⁠  ⁠EUR (EUR)
+•⁠  ⁠GBP (GBP)
+•⁠  ⁠JPY (JPY)
+•⁠  ⁠NZD (NZD)
+•⁠  ⁠USD (USD)

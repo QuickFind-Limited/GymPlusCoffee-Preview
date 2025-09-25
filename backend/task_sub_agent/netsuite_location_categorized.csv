@@ -1,0 +1,50 @@
+Location Name,Main Category,Sub Category,Description
+Blanchardstown Centre,RETAIL STORES,Ireland,Major shopping center in Dublin
+Crescent Centre,RETAIL STORES,Ireland,Shopping center in Limerick
+Dundrum Town Centre,RETAIL STORES,Ireland,Premier shopping center in Dublin
+Galway,RETAIL STORES,Ireland,Retail location in Galway
+Jervis Centre,RETAIL STORES,Ireland,Shopping center in Dublin city center
+Liffey Valley,RETAIL STORES,Ireland,Major shopping center in Dublin
+Mahon Point,RETAIL STORES,Ireland,Shopping center in Cork
+Swords Pavillon,RETAIL STORES,Ireland,Shopping center in North Dublin
+Liverpool,RETAIL STORES,UK,UK retail location
+Manchester,RETAIL STORES,UK,UK retail location
+Westfield London,RETAIL STORES,UK,Premier UK shopping destination
+Belfast,RETAIL STORES,Northern Ireland,Northern Ireland retail presence
+Kildare Village,RETAIL STORES,Ireland,Premium outlet shopping destination
+Bleckmann Aussie,WAREHOUSE/3PL,Bleckmann,3PL partner - Australia operations
+Bleckmann Australia,WAREHOUSE/3PL,Bleckmann,3PL partner - Australia fulfillment
+Bleckmann BE,WAREHOUSE/3PL,Bleckmann,3PL partner - Belgium main facility
+Bleckmann BE Miscellaneous,WAREHOUSE/3PL,Bleckmann,3PL partner - Belgium misc inventory
+Bleckmann BE Quarantine,WAREHOUSE/3PL,Bleckmann,3PL partner - Belgium quarantine
+Bleckmann Ohio,WAREHOUSE/3PL,Bleckmann,3PL partner - US operations
+Bleckmann Swindon,WAREHOUSE/3PL,Bleckmann,3PL partner - UK operations
+Bleckmann UK,WAREHOUSE/3PL,Bleckmann,3PL partner - UK main facility
+Bleckmann UK Miscellaneous,WAREHOUSE/3PL,Bleckmann,3PL partner - UK misc inventory
+Bleckmann UK Quarantine,WAREHOUSE/3PL,Bleckmann,3PL partner - UK quarantine
+2Flow,WAREHOUSE/3PL,PCH/2Flow,Logistics partner operations
+PCH China,WAREHOUSE/3PL,PCH/2Flow,China supply chain partner
+PCH China Quarantine,WAREHOUSE/3PL,PCH/2Flow,China quarantine facility
+Wholesale,WHOLESALE,Ireland,Ireland wholesale operations
+Wholesale UK,WHOLESALE,UK,UK wholesale operations
+Wholesale UK Future,WHOLESALE,UK,Future wholesale planning/staging
+Events IE,EVENTS,Ireland,Ireland event inventory management
+Events UK,EVENTS,UK,UK event inventory management
+Headquarters,HEADQUARTERS/OFFICE,Ireland,Main Ireland office and operations
+Headquarters UK,HEADQUARTERS/OFFICE,UK,Main UK office and operations
+Ireland Quarantine,INVENTORY CONTROL,Quarantine,Quality control and customs holding - Ireland
+Lifestyle Quarantine,INVENTORY CONTROL,Quarantine,Partner inventory quarantine
+Meteor Space Quarantine,INVENTORY CONTROL,Quarantine,Partner inventory quarantine
+LSS Returns,INVENTORY CONTROL,Returns,Customer returns processing center
+Kildare B Stock,INVENTORY CONTROL,Hold/B-Stock,B-stock and clearance inventory
+Lifestyle Hold,INVENTORY CONTROL,Hold/B-Stock,Partner inventory on hold
+Lifestyle Sports B2B,PARTNER/B2B,Lifestyle Sports,Lifestyle Sports B2B operations
+Lifestyle Sports B2B Miscellaneous,PARTNER/B2B,Lifestyle Sports,Lifestyle Sports misc inventory
+Lifestyle Sports FC,PARTNER/B2B,Lifestyle Sports,Lifestyle Sports fulfillment center
+Lifestyle Sports FC Miscellaneous,PARTNER/B2B,Lifestyle Sports,Lifestyle Sports FC misc inventory
+Otrium,PARTNER/B2B,Marketplaces,Online marketplace - clearance/outlet
+The Very Group,PARTNER/B2B,Marketplaces,Online marketplace partner
+Academy Crests,PARTNER/B2B,Other Partners,B2B partner operations
+Digme,PARTNER/B2B,Other Partners,Fitness partner operations
+Meteor Space,PARTNER/B2B,Other Partners,Partner fulfillment operations
+Meteor Space Miscellaneous,PARTNER/B2B,Other Partners,Partner misc inventory

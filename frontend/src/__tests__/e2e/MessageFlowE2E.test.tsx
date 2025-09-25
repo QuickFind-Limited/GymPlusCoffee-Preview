@@ -214,7 +214,7 @@ describe('Message Flow End-to-End Tests', () => {
     });
   });
 
-  it('preserves conversation state across page refreshes', async () => {
+  it('starts a fresh conversation after refresh', async () => {
     window.history.pushState({}, '', '/dashboard');
     render(<App />);
     
@@ -237,11 +237,9 @@ describe('Message Flow End-to-End Tests', () => {
     // Navigate back to dashboard
     window.history.pushState({}, '', '/dashboard');
     
-    // Should restore conversation from localStorage
     await waitFor(() => {
-      // The conversation should be restored from localStorage
-      const savedHistory = localStorage.getItem('chat-history');
-      expect(savedHistory).toBeTruthy();
+      expect(screen.getByText(/what do you need to do today/i)).toBeInTheDocument();
+      expect(screen.queryByText('persistent conversation')).not.toBeInTheDocument();
     });
   });
 

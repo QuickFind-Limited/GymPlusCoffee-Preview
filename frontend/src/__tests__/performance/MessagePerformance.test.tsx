@@ -122,50 +122,6 @@ describe('Message Flow Performance Tests', () => {
       expect(renderTime).toBeLessThan(300); // Should render in < 300ms
     });
 
-    it('handles large conversation histories efficiently', async () => {
-      const largeHistory = Array.from({ length: 1000 }, (_, i) => ({
-        id: `perf-${i}`,
-        content: `Performance test message ${i}`,
-        role: i % 2 === 0 ? 'user' : 'assistant',
-        timestamp: new Date(Date.now() - i * 1000).toISOString(),
-        type: 'text',
-      }));
-      
-      localStorage.setItem('chat-history', JSON.stringify(largeHistory));
-      
-      const startTime = performance.now();
-      render(<ChatInterface {...defaultProps} />);
-      const endTime = performance.now();
-      
-      const renderTime = endTime - startTime;
-      expect(renderTime).toBeLessThan(1000); // Should handle 1000 messages in < 1s
-    });
-
-    it('optimizes scroll performance with long conversations', async () => {
-      const longHistory = Array.from({ length: 500 }, (_, i) => ({
-        id: `scroll-${i}`,
-        content: `Scroll test message ${i}`,
-        role: i % 2 === 0 ? 'user' : 'assistant',
-        timestamp: new Date(Date.now() - i * 1000).toISOString(),
-        type: 'text',
-      }));
-      
-      localStorage.setItem('chat-history', JSON.stringify(longHistory));
-      
-      render(<ChatInterface {...defaultProps} />);
-      
-      await waitFor(() => {
-        expect(screen.getByText('Scroll test message 0')).toBeInTheDocument();
-      });
-      
-      // Simulate scrolling performance
-      const scrollStart = performance.now();
-      window.dispatchEvent(new Event('scroll'));
-      const scrollEnd = performance.now();
-      
-      expect(scrollEnd - scrollStart).toBeLessThan(50); // Scroll handling < 50ms
-    });
-
     it('manages memory efficiently during conversation', async () => {
       const initialMemory = (performance as any).memory.usedJSHeapSize;
       

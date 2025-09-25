@@ -18,4 +18,11 @@ ensure_mcp_server() {
 
 ensure_mcp_server netsuite_mcp "https://source-netsuite.fastmcp.app/mcp" http
 
+# Include all the files of agents from claude_agents folder without the folder itself in the .claude/agents directory
+if [ -d "/app/claude_agents" ]; then
+    mkdir -p /home/app/.claude/agents/
+    cp -r /app/claude_agents/* /home/app/.claude/agents/
+    echo "Agents copied"
+fi
+
 exec "$@"

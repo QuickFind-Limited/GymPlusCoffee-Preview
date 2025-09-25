@@ -117,57 +117,6 @@ describe('Message Flow Edge Cases', () => {
       onSubmit: vi.fn(),
     };
 
-    it('handles corrupted localStorage data', () => {
-      localStorage.setItem('chat-history', 'invalid json data {');
-      
-      expect(() => {
-        render(<ChatInterface {...defaultProps} />);
-      }).not.toThrow();
-      
-      // Should show default greeting
-      expect(screen.getByText(/hey.*what can i do for you today liam/i)).toBeInTheDocument();
-    });
-
-    it('handles localStorage quota exceeded', async () => {
-      // Mock localStorage to simulate quota exceeded
-      const originalSetItem = localStorage.setItem;
-      localStorage.setItem = vi.fn(() => {
-        throw new DOMException('QuotaExceededError', 'QuotaExceededError');
-      });
-      
-      render(<ChatInterface {...defaultProps} />);
-      
-      const input = screen.getByPlaceholderText(/message/i);
-      fireEvent.change(input, { target: { value: 'test message' } });
-      fireEvent.submit(input.closest('form')!);
-      
-      await waitFor(() => {
-        expect(screen.getByText('test message')).toBeInTheDocument();
-      });
-      
-      localStorage.setItem = originalSetItem;
-    });
-
-    it('handles messages with extreme nesting in conversation history', () => {
-      const deeplyNestedHistory = Array.from({ length: 1000 }, (_, i) => ({
-        id: `msg-${i}`,
-        content: `Message ${i}`,
-        role: i % 2 === 0 ? 'user' : 'assistant',
-        timestamp: new Date(Date.now() - i * 1000),
-        type: 'text',
-      }));
-      
-      localStorage.setItem('chat-history', JSON.stringify(deeplyNestedHistory));
-      
-      const startTime = performance.now();
-      render(<ChatInterface {...defaultProps} />);
-      const renderTime = performance.now() - startTime;
-      
-      // Should render without performance issues
-      expect(renderTime).toBeLessThan(2000);
-      expect(screen.getByText('Message 0')).toBeInTheDocument();
-    });
-
     it('handles simultaneous message submissions', async () => {
       render(<ChatInterface {...defaultProps} />);
       
@@ -333,32 +282,6 @@ describe('Message Flow Edge Cases', () => {
   });
 
   describe('Memory and Performance Edge Cases', () => {
-    it('handles memory pressure during large conversations', async () => {
-      const largeConversation = Array.from({ length: 5000 }, (_, i) => ({
-        id: `large-${i}`,
-        content: `Large message ${i} `.repeat(100),
-        role: i % 2 === 0 ? 'user' : 'assistant',
-        timestamp: new Date(Date.now() - i * 1000),
-        type: 'text',
-      }));
-      
-      localStorage.setItem('chat-history', JSON.stringify(largeConversation));
-      
-      const memoryBefore = performance.memory?.usedJSHeapSize || 0;
-      
-      render(<ChatInterface onSubmit={vi.fn()} />);
-      
-      await waitFor(() => {
-        expect(screen.getByText('Large message 0')).toBeInTheDocument();
-      });
-      
-      const memoryAfter = performance.memory?.usedJSHeapSize || 0;
-      const memoryIncrease = memoryAfter - memoryBefore;
-      
-      // Should not cause excessive memory usage (< 100MB increase)
-      expect(memoryIncrease).toBeLessThan(100 * 1024 * 1024);
-    });
-
     it('handles cleanup when components unmount during message flow', () => {
       const { unmount } = render(<ChatInterface onSubmit={vi.fn()} />);
       
@@ -372,20 +295,6 @@ describe('Message Flow Edge Cases', () => {
   });
 
   describe('Browser Compatibility Edge Cases', () => {
-    it('handles missing localStorage support', () => {
-      const originalLocalStorage = window.localStorage;
-      Object.defineProperty(window, 'localStorage', {
-        value: undefined,
-        writable: true,
-      });
-      
-      expect(() => {
-        render(<ChatInterface onSubmit={vi.fn()} />);
-      }).not.toThrow();
-      
-      window.localStorage = originalLocalStorage;
-    });
-
     it('handles missing modern JavaScript features', () => {
       // Mock missing features
       const originalPromise = window.Promise;

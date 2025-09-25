@@ -1,0 +1,7 @@
+'Price of an item seems abnormally low (e.g. water bottle < €4)'
+
+Anomaly Triggers
+Investigate before reporting if:
+Gross margin <10% or >70%
+Negative margins
+Zero quantity with revenue, or zero revenue with quantity

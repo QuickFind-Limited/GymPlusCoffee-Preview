@@ -40,7 +40,7 @@ class NetSuiteClient:
             "Prefer": "transient"
         }
 
-    def query(self, sql: str, timeout: int = 30) -> Dict[str, Any]:
+    def query(self, sql: str, timeout: int = 240) -> Dict[str, Any]:
         """
         Execute a SuiteQL query. That's it. No business logic.
 

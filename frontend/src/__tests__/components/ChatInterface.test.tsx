@@ -90,36 +90,6 @@ describe('ChatInterface Component', () => {
     });
   });
 
-  it('saves conversation history to localStorage', async () => {
-    render(<ChatInterface {...defaultProps} />);
-    
-    const input = screen.getByPlaceholderText(/message/i);
-    fireEvent.change(input, { target: { value: 'Test message' } });
-    fireEvent.submit(input.closest('form')!);
-    
-    await waitFor(() => {
-      const savedHistory = localStorage.getItem('chat-history');
-      expect(savedHistory).toBeTruthy();
-      
-      const parsedHistory = JSON.parse(savedHistory!);
-      expect(parsedHistory.some((msg: any) => msg.content === 'Test message')).toBe(true);
-    });
-  });
-
-  it('loads conversation history from localStorage', () => {
-    const mockHistory = [
-      { ...mockChatMessage, content: 'Previous message' },
-      { ...mockAssistantMessage, content: 'Previous response' },
-    ];
-    
-    localStorage.setItem('chat-history', JSON.stringify(mockHistory));
-    
-    render(<ChatInterface {...defaultProps} />);
-    
-    expect(screen.getByText('Previous message')).toBeInTheDocument();
-    expect(screen.getByText('Previous response')).toBeInTheDocument();
-  });
-
   describe('Message Type Detection', () => {
     it('detects forecast queries and shows reasoning display', async () => {
       render(<ChatInterface {...defaultProps} />);
@@ -200,30 +170,6 @@ describe('ChatInterface Component', () => {
   });
 
   describe('History Management', () => {
-    it('collapses history when new message is submitted', async () => {
-      // Pre-populate with history
-      const mockHistory = [
-        { ...mockChatMessage, content: 'Old message 1' },
-        { ...mockAssistantMessage, content: 'Old response 1' },
-        { ...mockChatMessage, content: 'Old message 2' },
-        { ...mockAssistantMessage, content: 'Old response 2' },
-      ];
-      localStorage.setItem('chat-history', JSON.stringify(mockHistory));
-      
-      render(<ChatInterface {...defaultProps} />);
-      
-      // Submit new message
-      const input = screen.getByPlaceholderText(/message/i);
-      fireEvent.change(input, { target: { value: 'New message' } });
-      fireEvent.submit(input.closest('form')!);
-      
-      await waitFor(() => {
-        expect(screen.getByText('New message')).toBeInTheDocument();
-        // History should still be present but may be collapsed
-        expect(screen.getByText('Old message 1')).toBeInTheDocument();
-      });
-    });
-
     it('shows back to top button when scrolled', async () => {
       render(<ChatInterface {...defaultProps} />);
       
@@ -248,29 +194,18 @@ describe('ChatInterface Component', () => {
   });
 
   describe('Error Handling', () => {
-    it('handles localStorage errors gracefully', () => {
-      // Mock localStorage to throw error
-      const originalGetItem = localStorage.getItem;
-      localStorage.getItem = vi.fn(() => {
-        throw new Error('localStorage error');
-      });
-      
-      expect(() => {
-        render(<ChatInterface {...defaultProps} />);
-      }).not.toThrow();
-      
-      localStorage.getItem = originalGetItem;
-    });
+    it('handles unexpected errors during submission gracefully', async () => {
+      mockOnSubmit.mockRejectedValueOnce(new Error('submit failed'));
 
-    it('handles malformed localStorage data', () => {
-      localStorage.setItem('chat-history', 'invalid json');
-      
-      expect(() => {
-        render(<ChatInterface {...defaultProps} />);
-      }).not.toThrow();
-      
-      // Should show default greeting
-      expect(screen.getByText(/hey.*what can i do for you today liam/i)).toBeInTheDocument();
+      render(<ChatInterface {...defaultProps} />);
+
+      const input = screen.getByPlaceholderText(/message/i);
+      fireEvent.change(input, { target: { value: 'trigger error' } });
+      fireEvent.submit(input.closest('form')!);
+
+      await waitFor(() => {
+        expect(screen.getByText('trigger error')).toBeInTheDocument();
+      });
     });
   });
 
@@ -309,20 +244,11 @@ describe('ChatInterface Component', () => {
   });
 
   describe('Performance', () => {
-    it('handles large conversation histories efficiently', async () => {
-      const largeHistory = Array.from({ length: 100 }, (_, i) => ({
-        ...mockChatMessage,
-        id: `msg-${i}`,
-        content: `Message ${i}`,
-      }));
-      
-      localStorage.setItem('chat-history', JSON.stringify(largeHistory));
-      
+    it('renders without significant delay with multiple messages', async () => {
       const startTime = performance.now();
-      render(<ChatInterface {...defaultProps} />);
+      render(<ChatInterface {...defaultProps} initialQuery="initial" />);
       const endTime = performance.now();
-      
-      // Should render within reasonable time (< 1000ms)
+
       expect(endTime - startTime).toBeLessThan(1000);
     });
   });

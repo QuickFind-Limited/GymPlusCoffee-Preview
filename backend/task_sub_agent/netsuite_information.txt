@@ -1,0 +1,18 @@
+Wholesale Customer: Payment Terms = 2/3/other
+Retail Customer: Payment Terms = NULL 
+
+the specific payment terms field name in NetSuite is:
+
+  terms
+
+  This field contains:
+  - NULL/empty = No payment terms (retail customers, immediate payment)
+  - 2 = NET 30 days payment terms
+  - 3 = NET 60 days payment terms
+  - Other numeric IDs for custom payment terms
+
+  You can query it directly as:
+  SELECT terms FROM customer
+
+  The field references the payment term ID from the paymentterm table, where you can look up the
+  actual term names if needed.

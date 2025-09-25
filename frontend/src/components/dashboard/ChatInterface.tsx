@@ -110,45 +110,22 @@ const ChatInterface = ({
     ].join(' ');
 
 
-  // Load conversation history from localStorage on mount
+  // Start each tab or refresh with a clean conversation
   useEffect(() => {
-    // Don't load history if we have an initial query to process
     if (initialQuery && initialQuery.trim()) {
-      // For initial query, start with empty messages to avoid conflicts
       setMessages([]);
       return;
     }
-    
-    const savedHistory = localStorage.getItem('chat-history');
-    if (savedHistory) {
-      try {
-        const parsedHistory = JSON.parse(savedHistory);
-        setMessages(parsedHistory.map((msg: any) => ({
-          ...msg,
-          timestamp: new Date(msg.timestamp)
-        })));
-      } catch (error) {
-        console.error('Failed to load chat history:', error);
-      }
-    } else {
-      // Add default greeting message when no history exists
-      const greetingMessage: ChatMessage = {
-        id: 'greeting',
-        content: 'Hey , what can I do for you today Liam?',
-        role: 'assistant',
-        timestamp: new Date(),
-        type: 'text'
-      };
-      setMessages([greetingMessage]);
-    }
-  }, [initialQuery]);
 
-  // Save conversation history to localStorage whenever messages change
-  useEffect(() => {
-    if (messages.length > 0) {
-      localStorage.setItem('chat-history', JSON.stringify(messages));
-    }
-  }, [messages]);
+    const greetingMessage: ChatMessage = {
+      id: 'greeting',
+      content: 'Hey , what can I do for you today Liam?',
+      role: 'assistant',
+      timestamp: new Date(),
+      type: 'text'
+    };
+    setMessages([greetingMessage]);
+  }, [initialQuery]);
 
   // Handle scroll to show/hide back to top button
   useEffect(() => {

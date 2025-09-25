@@ -1,40 +1,35 @@
 """Minimal Claude SDK Server."""
 
 import os
+from typing import Optional
 
-from dotenv import load_dotenv
 import atla_insights
-
-# Load environment variables from .env file
-load_dotenv()
-import logfire
+from dotenv import load_dotenv
 from atla_insights import instrument_claude_code_sdk
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from src.claude_sdk_server.api.routers.claude_router import router as claude_router
-from src.claude_sdk_server.api.routers.streaming_router import (
-    router as streaming_router,
-)
-from src.claude_sdk_server.api.routers.file_router import router as file_router
-from src.claude_sdk_server.api.routers.files_router import router as files_router
-from src.claude_sdk_server.api.routers.netsuite_router import router as netsuite_router
 from src.claude_sdk_server.api.routers.clarification_router import (
     router as clarification_router,
 )
+from src.claude_sdk_server.api.routers.claude_router import router as claude_router
+from src.claude_sdk_server.api.routers.file_router import router as file_router
+from src.claude_sdk_server.api.routers.files_router import router as files_router
+from src.claude_sdk_server.api.routers.netsuite_router import router as netsuite_router
+from src.claude_sdk_server.api.routers.streaming_router import (
+    router as streaming_router,
+)
 from src.claude_sdk_server.utils.logging_config import get_logger
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Initialize logger with clean loguru configuration
 logger = get_logger(__name__)
 
-# Configure third-party integrations
-atla_insights.configure(
-    token=os.environ["ATLA_INSIGHTS_API_KEY"],
-    metadata={"environment": os.environ["ATLA_ENVIRONMENT"]},
-)
-# instrument_claude_code_sdk()  # Temporarily disabled due to instrumentation error
-
-# Create FastAPI application
 logger.reasoning("Initializing FastAPI application with clean architecture")
 app = FastAPI(
     title="Claude SDK Server",
@@ -50,10 +45,10 @@ app.add_middleware(
         "http://localhost:8000",
         "http://localhost:8081",
         "*",
-    ],  # Allow frontend origin
+    ],
     allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 logger.context(
@@ -66,10 +61,54 @@ logger.context(
     },
 )
 
-# Configure logfire monitoring (disabled due to auth issues)
-# logger.analysis("Configuring logfire for application monitoring")
-# logfire.configure()
-# logfire.instrument_fastapi(app, capture_headers=True)
+# Configure observability exporters and third-party integrations
+logfire_span_processor: Optional[BatchSpanProcessor] = None
+
+logfire_token = os.getenv("LOGFIRE_TOKEN")
+if logfire_token:
+    try:
+        logger.analysis("Configuring logfire OTLP exporter for application monitoring")
+        logfire_exporter = OTLPSpanExporter(
+            endpoint="https://logfire-eu.pydantic.dev/v1/traces",
+            headers={"Authorization": f"Bearer {logfire_token}"},
+        )
+        logfire_span_processor = BatchSpanProcessor(logfire_exporter)
+        FastAPIInstrumentor.instrument_app(app)
+        logger.context(
+            "Logfire instrumentation enabled",
+            context_data={"endpoint": "https://logfire-eu.pydantic.dev/v1/traces"},
+        )
+    except Exception as exc:
+        logger.warning("Logfire instrumentation failed", error=str(exc))
+else:
+    logger.info("LOGFIRE_TOKEN not provided; skipping logfire instrumentation")
+
+atla_token = os.getenv("ATLA_INSIGHTS_API_KEY")
+environment = os.getenv("ATLA_ENVIRONMENT", "development")
+if atla_token:
+    atla_kwargs = {"metadata": {"environment": environment}}
+    if logfire_span_processor:
+        atla_kwargs["additional_span_processors"] = [logfire_span_processor]
+
+    try:
+        atla_insights.configure(token=atla_token, **atla_kwargs)
+        logger.context(
+            "Atla Insights configured",
+            context_data={
+                "environment": environment,
+                "logfire_linked": bool(logfire_span_processor),
+            },
+        )
+    except Exception as exc:
+        logger.warning("Failed to configure Atla Insights", error=str(exc))
+else:
+    logger.info("ATLA_INSIGHTS_API_KEY not provided; skipping Atla Insights instrumentation")
+
+try:
+    instrument_claude_code_sdk()
+    logger.info("Claude Code SDK instrumentation enabled")
+except Exception as exc:
+    logger.warning("Failed to instrument Claude Code SDK", error=str(exc))
 
 # Include routers
 logger.structured("router_registration", router_name="claude_router")

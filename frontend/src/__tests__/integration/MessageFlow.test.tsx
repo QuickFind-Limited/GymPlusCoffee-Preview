@@ -270,32 +270,6 @@ describe('Message Flow Integration Tests', () => {
     });
   });
 
-  describe('Message Persistence', () => {
-    it('saves and restores conversation state', async () => {
-      render(<Dashboard />);
-      
-      // Submit a message
-      await waitFor(() => {
-        const searchInput = screen.getByPlaceholderText(/type your message/i);
-        fireEvent.change(searchInput, { target: { value: 'persistent message' } });
-        fireEvent.keyDown(searchInput, { key: 'Enter' });
-      });
-      
-      await waitFor(() => {
-        expect(screen.getByText('persistent message')).toBeInTheDocument();
-      });
-      
-      // Verify localStorage contains the message
-      await waitFor(() => {
-        const savedHistory = localStorage.getItem('chat-history');
-        expect(savedHistory).toBeTruthy();
-        
-        const parsedHistory = JSON.parse(savedHistory!);
-        expect(parsedHistory.some((msg: any) => msg.content === 'persistent message')).toBe(true);
-      });
-    });
-  });
-
   describe('Responsive Message Flow', () => {
     it('handles different screen sizes appropriately', async () => {
       // Mock different viewport sizes
