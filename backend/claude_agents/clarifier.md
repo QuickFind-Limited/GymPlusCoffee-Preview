@@ -1,6 +1,6 @@
 ---
 name: clarifier
-description: Gym+Coffee clarification planner
+description: Gym+Coffee clarification planner that needs to be used before answering question to be sure that we have enough context.
 model: sonnet
 color: purple
 ---
