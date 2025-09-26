@@ -450,10 +450,47 @@ class ClaudeService:
         """Process user messages with comprehensive error handling."""
         try:
             # Extract user message content safely
-            content = getattr(message, 'content', '')
-            if not isinstance(content, str):
-                content = str(content)
-            
+            raw_content = getattr(message, 'content', '')
+
+            blocks = []
+            collected_text: List[str] = []
+
+            # Handle structured content blocks (tool results, text, etc.)
+            if isinstance(raw_content, list):
+                blocks = list(raw_content)
+            elif raw_content and not isinstance(raw_content, str):
+                # Some SDK versions wrap blocks in tuples or other iterables
+                if hasattr(raw_content, '__iter__') and not isinstance(raw_content, (bytes, bytearray)):
+                    blocks = list(raw_content)
+
+            for block in blocks:
+                block_type = type(block).__name__
+
+                if block_type == "TextBlock" or hasattr(block, "text"):
+                    text_value = getattr(block, "text", "")
+                    if text_value:
+                        collected_text.append(str(text_value))
+                elif block_type == "ToolResultBlock" or hasattr(block, "tool_use_id"):
+                    await self._bulletproof_log_tool_result(block)
+                    result_text = self._stringify_tool_content(getattr(block, "content", None))
+                    if result_text:
+                        collected_text.append(result_text)
+                elif block_type == "ThinkingBlock" or hasattr(block, "thinking"):
+                    thinking_text = getattr(block, "thinking", "")
+                    if thinking_text:
+                        collected_text.append(f"[Thinking: {str(thinking_text)[:500]}]")
+                else:
+                    # Fallback to string representation
+                    try:
+                        collected_text.append(str(block))
+                    except Exception:
+                        collected_text.append(f"[Unsupported block: {block_type}]")
+
+            if collected_text:
+                content = "\n".join(collected_text)
+            else:
+                content = raw_content if isinstance(raw_content, str) else str(raw_content)
+
             # Calculate metrics
             content_length = len(content)
             word_count = len(content.split()) if content else 0
@@ -924,12 +961,52 @@ class ClaudeService:
             logger.error(f"Complete input formatting failure: {e}")
             return "Input formatting failed"
 
+    def _stringify_tool_content(self, content: Any) -> str:
+        """Convert tool output payloads into human-readable text."""
+        if content is None:
+            return ""
+
+        if isinstance(content, str):
+            return content
+
+        if isinstance(content, (int, float, bool)):
+            return str(content)
+
+        if isinstance(content, list):
+            parts: List[str] = []
+            for item in content:
+                try:
+                    parts.append(self._stringify_tool_content(item))
+                except Exception:
+                    parts.append(str(item))
+            return "\n".join(filter(None, parts))
+
+        if isinstance(content, dict):
+            if "text" in content and isinstance(content["text"], str):
+                return content["text"]
+
+            try:
+                serialised = []
+                for key, value in content.items():
+                    value_text = self._stringify_tool_content(value)
+                    if value_text:
+                        serialised.append(f"{key}: {value_text}")
+                return "\n".join(serialised)
+            except Exception:
+                return str(content)
+
+        try:
+            return str(content)
+        except Exception:
+            return ""
+
     async def _bulletproof_log_tool_result(self, block: Any) -> None:
         """Log tool results with comprehensive error handling."""
         try:
             tool_use_id = getattr(block, "tool_use_id", "unknown")
             is_error = getattr(block, "is_error", False)
             content = getattr(block, "content", None)
+            raw_output = self._stringify_tool_content(content)
 
             # Find tool name safely
             tool_name = "unknown"
@@ -996,7 +1073,8 @@ class ClaudeService:
                         tool_name=tool_name,
                         success=True,
                         result_summary=result_summary or "Completed successfully",
-                        result_size=len(str(content)) if content else 0,
+                        result_size=len(raw_output) if raw_output else 0,
+                        result_content=raw_output or None,
                     ),
                     f"Tool {tool_name} completed"
                 )
@@ -1010,8 +1088,10 @@ class ClaudeService:
             if not content:
                 return "No output"
 
-            content_str = str(content)
-            
+            content_str = self._stringify_tool_content(content)
+            if not content_str:
+                return "No output"
+
             if len(content_str) < 50:
                 return content_str
             elif len(content_str) < 200:

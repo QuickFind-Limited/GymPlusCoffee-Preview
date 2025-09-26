@@ -298,6 +298,12 @@ async def format_event_for_sse(event) -> str:
             formatted_data["display"] = f"{status} Web scraping completed"
         else:
             formatted_data["display"] = f"{status} Result: {tool_name} completed"
+        formatted_data["details"] = {
+            "summary": getattr(event, "result_summary", ""),
+            "content": getattr(event, "result_content", None),
+            "tool_id": getattr(event, "tool_id", None),
+            "tool_name": tool_name,
+        }
 
     elif event_type == "assistant_message":
         formatted_data["display"] = "💬 Assistant: Response block"

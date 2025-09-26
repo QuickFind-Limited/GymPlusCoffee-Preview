@@ -642,6 +642,50 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                         continue;
                       }
 
+                      if (event.type === "log" && event.data?.type === "tool_result") {
+                        const details = (event.data?.details ?? {}) as Record<string, unknown>;
+                        const rawContent = typeof details?.content === "string" ? details.content : "";
+                        const summary = typeof details?.summary === "string" ? details.summary : "";
+                        const display = typeof event.display === "string" ? event.display : "";
+
+                        const combinedContent = [rawContent, summary]
+                          .map((part) => stripJsonBlocks(part || "").trim())
+                          .filter(Boolean)
+                          .join("\n\n") || stripJsonBlocks(display).trim();
+
+                        if (combinedContent) {
+                          normalizedAssistant.push({
+                            event,
+                            content: combinedContent,
+                            isTodo: false,
+                          });
+                        }
+                        continue;
+                      }
+
+                      if (event.type === "log" && event.data?.type === "tool_use") {
+                        const display = typeof event.display === "string" ? event.display : "";
+                        const summary = typeof (event.data as any)?.details === "string"
+                          ? ((event.data as any).details as string)
+                          : "";
+                        const inputSummary = typeof (event.data as any)?.input_summary === "string"
+                          ? ((event.data as any).input_summary as string)
+                          : "";
+                        const combinedContent = [display, summary, inputSummary]
+                          .map((part) => stripJsonBlocks(part || "").trim())
+                          .filter(Boolean)
+                          .join("\n\n");
+
+                        if (combinedContent) {
+                          normalizedAssistant.push({
+                            event,
+                            content: combinedContent,
+                            isTodo: false,
+                          });
+                        }
+                        continue;
+                      }
+
                       if (event.type === "log" && isTodoLogEvent(event)) {
                         const content = extractTodoContent(event);
                         const key = content.trim().toLowerCase();
@@ -653,9 +697,21 @@ const StreamingConversation: React.FC<StreamingConversationProps> = ({
                             isTodo: true,
                           });
                         }
+                        continue;
+                      }
+
+                      if (event.type === "log" && typeof event.display === "string" && event.display.trim()) {
+                        const content = stripJsonBlocks(event.display).trim();
+                        if (content) {
+                          normalizedAssistant.push({
+                            event,
+                            content,
+                            isTodo: false,
+                          });
+                        }
+                        continue;
                       }
                     }
-
                     const normalizedEvents = [...normalizedAssistant, ...normalizedTodos].sort(
                       (a, b) =>
                         new Date(a.event.timestamp).getTime() -

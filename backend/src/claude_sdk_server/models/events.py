@@ -184,6 +184,9 @@ class ToolResultEvent(BaseEvent):
     result_size: Optional[int] = Field(
         None, description="Size of the result in characters"
     )
+    result_content: Optional[str] = Field(
+        None, description="Full result content when available"
+    )
 
 
 class ToolErrorEvent(BaseEvent):
