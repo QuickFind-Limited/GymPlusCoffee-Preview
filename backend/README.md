@@ -17,10 +17,11 @@ FastAPI service that wraps the Claude Code SDK and exposes helper endpoints for 
    Required variables:
    - `ANTHROPIC_API_KEY`
    - `ATLA_INSIGHTS_API_KEY`
-   Optional integrations:
+   - `ATLA_ENVIRONMENT` (for tagging logs/metrics, e.g. `development`)
    - `SUPABASE_URL` / `SUPABASE_ANON_KEY`
-   - NetSuite OAuth keys (`GYM_PLUS_COFFEE_*`, `NETSUITE_*`)
-   - `CLARIFICATION_DATA_DIR`, `CLARIFICATION_CSV_PATH`, `CLARIFICATION_RESULTS_PATH` if you want to override the packaged datasets in `src/data/`.
+   Optional overrides:
+   - `LOG_LEVEL`
+   - `CLARIFICATION_DATA_DIR`, `CLARIFICATION_CSV_PATH`, `CLARIFICATION_RESULTS_PATH`, `SYSTEM_DEFAULTS_RESULTS_PATH` if you want to point at external datasets.
 2. Install dependencies:
    ```bash
    uv sync
