@@ -29,7 +29,6 @@ FastAPI service that wraps the Claude Code SDK and exposes helper endpoints for 
    ```bash
    uv run --env-file .env uvicorn src.claude_sdk_server.main:app --reload --host 0.0.0.0 --port 8000
    ```
-   or simply `make run-local`.
 
 ## Docker workflow
 ```bash
@@ -41,11 +40,12 @@ make restart # restart the stack
 
 ## Makefile shortcuts
 See `make help` for the full list. Common targets:
-- `make sync` – install Python dependencies with uv.
-- `make run-local` – start uvicorn using your local virtualenv.
+- `make up` – build and start the Docker stack.
+- `make down` – stop the containers.
+- `make logs` / `make logs-pretty` – follow backend logs.
+- `make restart` – cycle the Docker stack.
+- `make clean` – remove containers and cached artefacts.
 - `make test` – execute the pytest suite.
-- `make smoke` – verify `/api/v1/health` and `/api/v1/query` (expects a running server).
-- `make stream-status` / `make stream-clients` – quick checks against the streaming endpoints.
 
 ## API quick reference
 - `GET /api/v1/health` – health check.
@@ -80,6 +80,6 @@ backend/
 ## Troubleshooting
 - **Port in use** – stop existing uvicorn/docker processes (`lsof -i :8000`).
 - **Missing datasets** – either place files under `backend/data/` or set `CLARIFICATION_*` env vars to point at your copies. The repository ships read-only snapshots in `src/data/`.
-- **Auth errors** – confirm `.env` values and restart the process (`make run-local`).
+- **Auth errors** – confirm `.env` values and restart the process.
 
 Built with FastAPI, Anthropic Claude, and uv.
