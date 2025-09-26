@@ -4,18 +4,18 @@ DOCKER_COMPOSE ?= docker compose
 PORT ?= 8000
 UV ?= uv
 
-.PHONY: help up down restart logs logs-pretty clean test
+.PHONY: all help up down restart logs logs-pretty clean test
+
+all: help
 
 help:
-	@echo "Backend service commands"
-	@echo ""
-	@echo "make up           Build and launch the Docker stack"
-	@echo "make down         Stop the Docker stack"
-	@echo "make logs         Tail container logs"
-	@echo "make logs-pretty  Tail logs with emoji filtering"
-	@echo "make restart      Stop then start the Docker stack"
-	@echo "make clean        Remove containers and cached build artefacts"
-	@echo "make test         Run the pytest suite"
+	@printf "%s\n" \
+		"Backend service commands" \
+		"" \
+		"make up/down         Build or stop the Docker stack" \
+		"make logs/logs-pretty Tail container logs" \
+		"make restart/clean    Restart or reset containers" \
+		"make test             Run the pytest suite"
 
 
 up:
@@ -43,6 +43,5 @@ clean:
 
 test:
 	@$(UV) run pytest -q
-
 
 
