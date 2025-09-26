@@ -17,7 +17,7 @@ Unified workspace for the Gym+Coffee internal tooling stack. The repository host
    cd backend
    cp .env.example .env   # fill in required secrets
    uv sync
-   make run-local          # or 'uv run --env-file .env uvicorn ...'
+   uv run --env-file .env uvicorn src.claude_sdk_server.main:app --reload --host 0.0.0.0 --port 8000
    ```
 3. **Frontend setup**
    ```bash
@@ -26,7 +26,7 @@ Unified workspace for the Gym+Coffee internal tooling stack. The repository host
    npm install
    npm run dev
    ```
-4. Visit the frontend dev server (defaults to `http://localhost:5173`) and ensure the backend responds on `http://localhost:8000`.
+4. Visit the frontend dev server (defaults to `http://localhost:3002`) and ensure the backend responds on `http://localhost:8000`.
 
 ## Repository Structure
 ```
