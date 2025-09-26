@@ -61,11 +61,6 @@ logger.context(
     },
 )
 
-# Configure logfire monitoring (disabled due to auth issues)
-# logger.analysis("Configuring logfire for application monitoring")
-# logfire.configure()
-# logfire.instrument_fastapi(app, capture_headers=True)
-
 # Include routers
 logger.structured("router_registration", router_name="claude_router")
 app.include_router(claude_router)
