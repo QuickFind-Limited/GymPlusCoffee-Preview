@@ -4,4 +4,8 @@ reviews:
 auto_review:
   enabled: true
   base_branches:
+    - main
     - develop
+    - feature/*
+    - release/*
+    - hotfix/*
