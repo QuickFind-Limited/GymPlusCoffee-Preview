@@ -1,0 +1,79 @@
+# Global ignore rules
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.staging
+.env.*.local
+.envrc
+backend/.env
+backend/.env.local
+backend/.env.development
+backend/.env.production
+backend/.env.test
+frontend/.env
+frontend/.env.local
+frontend/.env.development
+frontend/.env.production
+frontend/.env.test
+frontend/.env.staging
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+
+# Package & dependency directories
+node_modules/
+frontend/node_modules/
+backend/.venv/
+.venv/
+.venv*/
+
+# Python caches & tooling
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+backend/.pytest_cache/
+backend/.mypy_cache/
+backend/.ruff_cache/
+backend/.uv_cache/
+.uv_cache/
+
+# Build & test artefacts
+/dist/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+frontend/coverage/
+frontend/test-results/
+frontend/playwright-report/
+backend/dist/
+backend/build/
+coverage/
+coverage-*/
+htmlcov/
+*.coverage
+*.lcov
+
+# Data dumps
+*.db
+*.db-journal
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+
+# Logs
+*.log
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
