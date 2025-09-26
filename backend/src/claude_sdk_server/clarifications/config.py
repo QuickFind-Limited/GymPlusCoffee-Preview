@@ -21,6 +21,10 @@ if _BACKEND_ROOT is None:
 _REPO_ROOT = _BACKEND_ROOT.parent if _BACKEND_ROOT.name == "backend" else _BACKEND_ROOT
 
 _DEFAULT_DATA_DIR = _BACKEND_ROOT / "data"
+_PACKAGE_DATA_DIR = _BACKEND_ROOT / "src" / "data"
+
+if not _DEFAULT_DATA_DIR.exists() and _PACKAGE_DATA_DIR.exists():
+    _DEFAULT_DATA_DIR = _PACKAGE_DATA_DIR
 
 def _resolve_existing_path(*candidates: Path | str) -> Path | None:
     for candidate in candidates:
@@ -32,12 +36,14 @@ def _resolve_existing_path(*candidates: Path | str) -> Path | None:
 _DEFAULT_CSV = _resolve_existing_path(
     _REPO_ROOT / "netsuite_query_comparison-2.csv",
     _BACKEND_ROOT / "netsuite_query_comparison-2.csv",
+    _PACKAGE_DATA_DIR / "netsuite_query_comparison-2.csv",
     Path("/app/netsuite_query_comparison-2.csv"),
 )
 
 _DEFAULT_JSON_RESULTS = _resolve_existing_path(
     _REPO_ROOT / "netsuite_query_results.json",
     _BACKEND_ROOT / "netsuite_query_results.json",
+    _PACKAGE_DATA_DIR / "netsuite_query_results.json",
     Path("/app/netsuite_query_results.json"),
 )
 

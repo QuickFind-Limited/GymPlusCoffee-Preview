@@ -26,6 +26,12 @@ A Vite + React + TypeScript application that powers the Gym+Coffee internal tool
 
 The app will be available on the port defined in your `.env` (defaults to Vite's standard 5173).
 
+## Environment
+- `VITE_SUPABASE_URL` – Supabase project URL (https://<project>.supabase.co).
+- `VITE_SUPABASE_ANON_KEY` – Supabase anon key for client requests.
+- `VITE_API_BASE_URL` – Base URL for the Python backend (e.g. http://localhost).
+- `VITE_API_PORT` – Port exposed by the backend (default 8000).
+
 ## Common Scripts
 - `npm run dev` – launch the local development server.
 - `npm run build` – generate a production build in `dist/`.
