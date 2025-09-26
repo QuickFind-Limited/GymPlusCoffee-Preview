@@ -1,6 +1,6 @@
 # Gym+Coffee Frontend
 
-A Vite + React + TypeScript application that powers the Gym+Coffee internal tools and integrations. The UI talks to the Supabase project configured in `.env` alongside the Python backend for more advanced workflows (Odoo sync, NetSuite clarifications, etc.).
+A Vite + React + TypeScript application that powers the Gym+Coffee internal tools and integrations. The UI talks to the Supabase project configured in `.env` alongside the Python backend for more advanced workflows (Odoo sync, NetSuite workflows, etc.).
 
 ## Tech Stack
 - React 18 with TypeScript and Vite

@@ -19,9 +19,6 @@ from src.claude_sdk_server.api.routers.streaming_router import (
 from src.claude_sdk_server.api.routers.file_router import router as file_router
 from src.claude_sdk_server.api.routers.files_router import router as files_router
 from src.claude_sdk_server.api.routers.netsuite_router import router as netsuite_router
-from src.claude_sdk_server.api.routers.clarification_router import (
-    router as clarification_router,
-)
 from src.claude_sdk_server.utils.logging_config import get_logger
 
 # Initialize logger with clean loguru configuration
@@ -86,9 +83,6 @@ app.include_router(files_router)
 
 logger.structured("router_registration", router_name="netsuite_router")
 app.include_router(netsuite_router)
-
-logger.structured("router_registration", router_name="clarification_router")
-app.include_router(clarification_router)
 
 logger.info("🚀 Claude SDK Server initialized successfully")
 

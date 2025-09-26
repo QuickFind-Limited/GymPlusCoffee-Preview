@@ -1,6 +1,6 @@
 # Gym+Coffee Backend
 
-FastAPI service that wraps the Claude Code SDK and exposes helper endpoints for Gym+Coffee tooling (clarification datasets, NetSuite lookups, and real-time streaming for the frontend).
+FastAPI service that wraps the Claude Code SDK and exposes helper endpoints for Gym+Coffee tooling (NetSuite lookups and real-time streaming for the frontend).
 
 ## Requirements
 - Python 3.13+
@@ -21,7 +21,7 @@ FastAPI service that wraps the Claude Code SDK and exposes helper endpoints for 
    - `SUPABASE_URL` / `SUPABASE_ANON_KEY`
    Optional overrides:
    - `LOG_LEVEL`
-   - `CLARIFICATION_DATA_DIR`, `CLARIFICATION_CSV_PATH`, `CLARIFICATION_RESULTS_PATH`, `SYSTEM_DEFAULTS_RESULTS_PATH` if you want to point at external datasets.
+
 2. Install dependencies:
    ```bash
    uv sync
@@ -54,7 +54,7 @@ See `make help` for the full list. Common targets:
 - `POST /api/v1/query/stream` – SSE stream of the same operation for real-time updates.
 - `GET /api/v1/stream/status` – inspect active streams and backlog metrics.
 - `GET /api/v1/stream/clients` – list connected streaming clients.
-- Additional routers provide clarification lookups and NetSuite helpers; enable the corresponding credentials to use them.
+- Additional routers expose NetSuite helpers; enable the corresponding credentials to use them.
 
 ## Testing
 ```bash
@@ -71,7 +71,6 @@ backend/
 ├── src/
 │   └── claude_sdk_server/
 │       ├── api/
-│       ├── clarifications/
 │       ├── services/
 │       ├── streaming/
 │       └── utils/
@@ -80,7 +79,7 @@ backend/
 
 ## Troubleshooting
 - **Port in use** – stop existing uvicorn/docker processes (`lsof -i :8000`).
-- **Missing datasets** – either place files under `backend/data/` or set `CLARIFICATION_*` env vars to point at your copies. The repository ships read-only snapshots in `src/data/`.
+- **Missing datasets** – ensure any required reference files are available locally or mounted into the container.
 - **Auth errors** – confirm `.env` values and restart the process.
 
 Built with FastAPI, Anthropic Claude, and uv.

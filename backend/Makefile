@@ -3,7 +3,6 @@
 DOCKER_COMPOSE ?= docker compose
 PORT ?= 8000
 UV ?= uv
-QUERY_BODY ?= {"prompt": "What is 2 + 2?"}
 
 .PHONY: help up down restart logs logs-pretty clean test
 
@@ -44,7 +43,6 @@ clean:
 
 test:
 	@$(UV) run pytest -q
-
 
 
 
